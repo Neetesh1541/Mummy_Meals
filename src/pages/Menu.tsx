@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTheme } from '../contexts/ThemeContext';
 import { 
   Search, 
   Filter, 
@@ -11,14 +12,19 @@ import {
   Leaf,
   ShoppingCart,
   Plus,
-  Minus
+  Minus,
+  Eye
 } from 'lucide-react';
+import RealTimeOrderTracker from '../components/OrderTracking/RealTimeOrderTracker';
 
 const Menu: React.FC = () => {
+  const { theme } = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedChef, setSelectedChef] = useState('all');
   const [cart, setCart] = useState<{[key: number]: number}>({});
+  const [showOrderTracker, setShowOrderTracker] = useState(false);
+  const [trackedOrderId, setTrackedOrderId] = useState('');
 
   const categories = [
     { id: 'all', name: 'All Items', icon: '🍽️' },
@@ -54,7 +60,8 @@ const Menu: React.FC = () => {
       tags: ['Homestyle', 'Comfort Food', 'Vegetarian'],
       isVeg: true,
       isJain: false,
-      isHealthy: true
+      isHealthy: true,
+      isLive: true // Indicates if this chef is currently cooking
     },
     {
       id: 2,
@@ -72,7 +79,8 @@ const Menu: React.FC = () => {
       tags: ['Punjabi', 'Protein Rich', 'Filling'],
       isVeg: true,
       isJain: false,
-      isHealthy: true
+      isHealthy: true,
+      isLive: true
     },
     {
       id: 3,
@@ -90,7 +98,8 @@ const Menu: React.FC = () => {
       tags: ['Street Food', 'Spicy', 'Traditional'],
       isVeg: true,
       isJain: false,
-      isHealthy: false
+      isHealthy: false,
+      isLive: false
     },
     {
       id: 4,
@@ -108,7 +117,8 @@ const Menu: React.FC = () => {
       tags: ['Non-Veg', 'Spicy', 'High Protein'],
       isVeg: false,
       isJain: false,
-      isHealthy: true
+      isHealthy: true,
+      isLive: true
     },
     {
       id: 5,
@@ -126,7 +136,8 @@ const Menu: React.FC = () => {
       tags: ['Jain', 'Complete Meal', 'Pure Veg'],
       isVeg: true,
       isJain: true,
-      isHealthy: true
+      isHealthy: true,
+      isLive: true
     },
     {
       id: 6,
@@ -144,7 +155,8 @@ const Menu: React.FC = () => {
       tags: ['Healthy', 'Low Carb', 'Superfood'],
       isVeg: true,
       isJain: true,
-      isHealthy: true
+      isHealthy: true,
+      isLive: false
     },
     {
       id: 7,
@@ -162,7 +174,8 @@ const Menu: React.FC = () => {
       tags: ['Mughlai', 'Rich', 'Popular'],
       isVeg: false,
       isJain: false,
-      isHealthy: false
+      isHealthy: false,
+      isLive: true
     },
     {
       id: 8,
@@ -180,7 +193,8 @@ const Menu: React.FC = () => {
       tags: ['Healthy', 'Iron Rich', 'Traditional'],
       isVeg: true,
       isJain: false,
-      isHealthy: true
+      isHealthy: true,
+      isLive: false
     }
   ];
 
@@ -224,6 +238,20 @@ const Menu: React.FC = () => {
       const item = menuItems.find(item => item.id === parseInt(itemId));
       return total + (item ? item.price * count : 0);
     }, 0);
+  };
+
+  const handleOrderNow = () => {
+    // Simulate order placement
+    const orderId = `ORD${Date.now()}`;
+    setTrackedOrderId(orderId);
+    setShowOrderTracker(true);
+    setCart({}); // Clear cart after order
+  };
+
+  const handleTrackOrder = (itemId: number) => {
+    const orderId = `ORD${itemId}${Date.now()}`;
+    setTrackedOrderId(orderId);
+    setShowOrderTracker(true);
   };
 
   return (
@@ -335,7 +363,7 @@ const Menu: React.FC = () => {
                     alt={item.name}
                     className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                   />
-                  <div className="absolute top-4 left-4">
+                  <div className="absolute top-4 left-4 flex items-center space-x-2">
                     {item.isVeg ? (
                       <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
                         <div className="w-3 h-3 bg-green-600 rounded-full"></div>
@@ -345,8 +373,26 @@ const Menu: React.FC = () => {
                         <div className="w-3 h-3 bg-red-600 rounded-full"></div>
                       </div>
                     )}
+                    {item.isLive && (
+                      <motion.div
+                        animate={{ scale: [1, 1.1, 1] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full flex items-center space-x-1"
+                      >
+                        <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                        <span>LIVE</span>
+                      </motion.div>
+                    )}
                   </div>
-                  <div className="absolute top-4 right-4">
+                  <div className="absolute top-4 right-4 flex space-x-2">
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => handleTrackOrder(item.id)}
+                      className="p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-colors"
+                    >
+                      <Eye className="h-4 w-4 text-blue-600" />
+                    </motion.button>
                     <motion.button
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
@@ -381,6 +427,9 @@ const Menu: React.FC = () => {
                     <span className="text-sm text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600 font-medium">
                       {item.chef}
                     </span>
+                    {item.isLive && (
+                      <span className="text-xs text-green-600 font-medium">• Currently Cooking</span>
+                    )}
                   </div>
 
                   <p className="text-sm text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600 mb-4 line-clamp-2">
@@ -487,6 +536,7 @@ const Menu: React.FC = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                onClick={handleOrderNow}
                 className="flex items-center space-x-3 px-6 py-4 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
               >
                 <ShoppingCart className="h-6 w-6" />
@@ -498,6 +548,14 @@ const Menu: React.FC = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Real-Time Order Tracker Modal */}
+        {showOrderTracker && (
+          <RealTimeOrderTracker
+            orderId={trackedOrderId}
+            onClose={() => setShowOrderTracker(false)}
+          />
+        )}
       </div>
     </div>
   );

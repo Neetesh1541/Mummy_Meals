@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import MummyMealsLogo from '../UI/MummyMealsLogo';
 import { 
   Menu, 
   X, 
@@ -10,7 +11,6 @@ import {
   Moon, 
   Palette, 
   Leaf,
-  Heart,
   User,
   LogOut,
   Home,
@@ -31,7 +31,7 @@ const Header: React.FC = () => {
   const themeIcons = {
     light: Sun,
     dark: Moon,
-    warm: Heart,
+    warm: Palette,
     green: Leaf
   };
 
@@ -56,17 +56,8 @@ const Header: React.FC = () => {
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2 group">
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="p-2 rounded-full bg-gradient-to-r from-orange-400 to-pink-400 dark:from-orange-500 dark:to-pink-500 warm:from-orange-300 warm:to-pink-300 green:from-green-400 green:to-emerald-400"
-            >
-              <Heart className="h-5 w-5 text-white" />
-            </motion.div>
-            <span className="text-xl font-bold bg-gradient-to-r from-orange-600 to-pink-600 dark:from-orange-400 dark:to-pink-400 warm:from-orange-700 warm:to-pink-700 green:from-green-600 green:to-emerald-600 bg-clip-text text-transparent">
-              MummyMeals
-            </span>
+          <Link to="/" className="group">
+            <MummyMealsLogo size="md" animated={true} showText={true} />
           </Link>
 
           {/* Desktop Navigation */}
