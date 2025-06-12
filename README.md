@@ -5,7 +5,7 @@
 **Mummy Meals** is a Swiggy-style food delivery platform designed to connect **bachelors and working individuals** with **homemade meals** prepared by loving moms.  
 Say goodbye to junk food and hello to the warmth of ghar ka khana! ❤️
 
-🔗 **Live Site:** [https://zesty-gaufre-6085be.netlify.app/](https://zesty-gaufre-6085be.netlify.app/)
+🔗 **Live Site:** https://mummy-meals.vercel.app/
 
 ---
 
