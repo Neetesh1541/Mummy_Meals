@@ -1,26 +1,4 @@
-import mongoose, { Document, Schema } from 'mongoose';
-
-export interface IOrderItem {
-  menu_item_id: string;
-  quantity: number;
-  price: number;
-  special_instructions?: string;
-}
-
-export interface IOrder extends Document {
-  _id: string;
-  foodie_id: mongoose.Types.ObjectId;
-  mom_id: mongoose.Types.ObjectId;
-  delivery_partner_id?: mongoose.Types.ObjectId;
-  items: IOrderItem[];
-  total_amount: number;
-  status: 'pending' | 'accepted' | 'preparing' | 'ready' | 'picked_up' | 'delivered' | 'cancelled';
-  delivery_address: string;
-  delivery_instructions?: string;
-  estimated_delivery_time?: Date;
-  created_at: Date;
-  updated_at: Date;
-}
+import mongoose, {  Schema } from 'mongoose';
 
 const OrderItemSchema = new Schema({
   menu_item_id: {
@@ -42,7 +20,7 @@ const OrderItemSchema = new Schema({
   }
 }, { _id: false });
 
-const OrderSchema = new Schema<IOrder>({
+const OrderSchema = new Schema({
   foodie_id: {
     type: Schema.Types.ObjectId,
     ref: 'User',
@@ -83,4 +61,4 @@ const OrderSchema = new Schema<IOrder>({
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
-export const Order = mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema);
+export const Order = mongoose.models.Order || mongoose.model('Order', OrderSchema);
