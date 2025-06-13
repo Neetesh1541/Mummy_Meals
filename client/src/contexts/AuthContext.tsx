@@ -6,6 +6,7 @@ type UserRole = 'foodie' | 'mom' | 'delivery';
 
 interface AuthContextValue {
   user: User | null;
+  token: string | null;
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string, phone: string, role: UserRole, additionalData?: any) => Promise<void>;
   logout: () => void;
@@ -24,17 +25,19 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     // Check for existing session
-    const token = localStorage.getItem('token');
+    const savedToken = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
     
-    if (token && savedUser) {
+    if (savedToken && savedUser) {
       try {
         const parsedUser = JSON.parse(savedUser);
         setUser(parsedUser);
+        setToken(savedToken);
         
         // Verify token is still valid
         authAPI.getProfile().catch(() => {
@@ -42,6 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           setUser(null);
+          setToken(null);
         });
       } catch (error) {
         console.error('Error parsing saved user:', error);
@@ -60,6 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('token', response.token);
         localStorage.setItem('user', JSON.stringify(response.user));
         setUser(response.user);
+        setToken(response.token);
         toast.success('Welcome back!');
       } else {
         throw new Error(response.message || 'Login failed');
@@ -89,6 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('token', response.token);
         localStorage.setItem('user', JSON.stringify(response.user));
         setUser(response.user);
+        setToken(response.token);
         toast.success('Account created successfully!');
       } else {
         throw new Error(response.message || 'Signup failed');
@@ -106,11 +112,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
+    setToken(null);
     toast.success('Logged out successfully');
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, signup, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

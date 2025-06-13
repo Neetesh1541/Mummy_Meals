@@ -13,6 +13,8 @@ import {
   User,
   Star
 } from 'lucide-react';
+import { useSocket } from '../../contexts/SocketContext';
+import { orderAPI } from '../../lib/api';
 
 interface OrderStatus {
   id: string;
@@ -51,37 +53,10 @@ interface RealTimeOrderTrackerProps {
 }
 
 const RealTimeOrderTracker: React.FC<RealTimeOrderTrackerProps> = ({ orderId, onClose }) => {
-  const [orderStatus, setOrderStatus] = useState<OrderStatus>({
-    id: orderId,
-    status: 'accepted',
-    estimatedTime: 35,
-    actualTime: 12,
-    momInfo: {
-      name: 'Priya Aunty',
-      phone: '+91 98765 43210',
-      avatar: 'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-      rating: 4.8,
-      kitchenName: "Priya's Kitchen"
-    },
-    deliveryPartner: {
-      name: 'Rahul Kumar',
-      phone: '+91 87654 32109',
-      avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-      rating: 4.6,
-      vehicleType: 'bike',
-      currentLocation: { lat: 28.6139, lng: 77.2090 },
-      estimatedArrival: 15
-    },
-    items: [
-      { name: 'Dal Chawal Combo', quantity: 1, price: 120 },
-      { name: 'Mixed Vegetable Curry', quantity: 1, price: 80 }
-    ],
-    totalAmount: 200,
-    orderTime: new Date().toISOString(),
-    deliveryAddress: '123 Main Street, New Delhi'
-  });
-
+  const { socket, isConnected } = useSocket();
+  const [orderStatus, setOrderStatus] = useState<OrderStatus | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -91,24 +66,77 @@ const RealTimeOrderTracker: React.FC<RealTimeOrderTrackerProps> = ({ orderId, on
     return () => clearInterval(timer);
   }, []);
 
-  // Simulate real-time status updates
+  // Fetch order details
   useEffect(() => {
-    const statusProgression = ['accepted', 'preparing', 'ready', 'picked_up', 'delivered'];
-    let currentIndex = statusProgression.indexOf(orderStatus.status);
-
-    const interval = setInterval(() => {
-      if (currentIndex < statusProgression.length - 1) {
-        currentIndex++;
-        setOrderStatus(prev => ({
-          ...prev,
-          status: statusProgression[currentIndex] as any,
-          actualTime: prev.actualTime! + Math.floor(Math.random() * 5) + 3
-        }));
+    const fetchOrderDetails = async () => {
+      try {
+        setLoading(true);
+        const response = await orderAPI.getMyOrders();
+        if (response.success) {
+          const order = response.orders.find(o => o._id === orderId);
+          if (order) {
+            // Transform API order to component format
+            setOrderStatus({
+              id: order._id,
+              status: order.status as any,
+              estimatedTime: 35, // Default estimate
+              actualTime: Math.floor((new Date().getTime() - new Date(order.created_at).getTime()) / (1000 * 60)),
+              momInfo: {
+                name: 'Chef Mom', // Default - should come from populated data
+                phone: '+91 98765 43210',
+                avatar: 'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+                rating: 4.8,
+                kitchenName: "Mom's Kitchen"
+              },
+              deliveryPartner: order.status !== 'pending' && order.status !== 'accepted' ? {
+                name: 'Delivery Partner',
+                phone: '+91 87654 32109',
+                avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+                rating: 4.6,
+                vehicleType: 'bike',
+                currentLocation: { lat: 28.6139, lng: 77.2090 },
+                estimatedArrival: 15
+              } : undefined,
+              items: order.items.map(item => ({
+                name: `Item ${item.menu_item_id}`, // Should be populated with actual menu item name
+                quantity: item.quantity,
+                price: item.price
+              })),
+              totalAmount: order.total_amount,
+              orderTime: order.created_at,
+              deliveryAddress: order.delivery_address
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching order details:', error);
+      } finally {
+        setLoading(false);
       }
-    }, 8000); // Update every 8 seconds for demo
+    };
 
-    return () => clearInterval(interval);
-  }, []);
+    fetchOrderDetails();
+  }, [orderId]);
+
+  // Listen for real-time order updates
+  useEffect(() => {
+    const handleOrderStatusUpdate = (event: any) => {
+      const { orderId: updatedOrderId, status, order } = event.detail;
+      if (updatedOrderId === orderId) {
+        setOrderStatus(prev => prev ? {
+          ...prev,
+          status: status,
+          actualTime: Math.floor((new Date().getTime() - new Date(prev.orderTime).getTime()) / (1000 * 60))
+        } : null);
+      }
+    };
+
+    window.addEventListener('order_status_update', handleOrderStatusUpdate);
+
+    return () => {
+      window.removeEventListener('order_status_update', handleOrderStatusUpdate);
+    };
+  }, [orderId]);
 
   const getStatusInfo = (status: string) => {
     const statusMap = {
@@ -158,6 +186,42 @@ const RealTimeOrderTracker: React.FC<RealTimeOrderTrackerProps> = ({ orderId, on
     return statusMap[status as keyof typeof statusMap];
   };
 
+  if (loading) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl max-w-md w-full p-8 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  if (!orderStatus) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl max-w-md w-full p-8 text-center">
+          <p className="text-gray-600 dark:text-gray-400">Order not found</p>
+          <button
+            onClick={onClose}
+            className="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </motion.div>
+    );
+  }
+
   const currentStatusInfo = getStatusInfo(orderStatus.status);
   const StatusIcon = currentStatusInfo.icon;
 
@@ -195,12 +259,19 @@ const RealTimeOrderTracker: React.FC<RealTimeOrderTrackerProps> = ({ orderId, on
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900">
               Order Tracking
             </h2>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 warm:hover:bg-orange-100 green:hover:bg-green-100 rounded-full transition-colors"
-            >
-              ✕
-            </button>
+            <div className="flex items-center space-x-2">
+              {!isConnected && (
+                <span className="text-xs bg-red-500 text-white px-2 py-1 rounded-full">
+                  Offline
+                </span>
+              )}
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 warm:hover:bg-orange-100 green:hover:bg-green-100 rounded-full transition-colors"
+              >
+                ✕
+              </button>
+            </div>
           </div>
           
           <div className="text-sm text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600">
