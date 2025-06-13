@@ -1,123 +1,123 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase, Order } from '../lib/supabase';
-import { Bell, Clock, CheckCircle, X, Phone, MapPin } from 'lucide-react';
+import { Bell, Clock, CheckCircle, X, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Order } from '../lib/types';
 
 const OrderNotification: React.FC = () => {
   const { user } = useAuth();
   const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
   const [showNotification, setShowNotification] = useState(false);
 
-  useEffect(() => {
-    if (!user || user.role !== 'mom') return;
+  // useEffect(() => {
+  //   if (!user || user.role !== 'mom') return;
 
-    // Subscribe to new orders for this mom
-    const subscription = supabase
-      .channel('orders')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'orders',
-          filter: `mom_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const newOrder = payload.new as Order;
-          setPendingOrders(prev => [...prev, newOrder]);
-          setShowNotification(true);
+  //   // Subscribe to new orders for this mom
+  //   const subscription = supabase
+  //     .channel('orders')
+  //     .on(
+  //       'postgres_changes',
+  //       {
+  //         event: 'INSERT',
+  //         schema: 'public',
+  //         table: 'orders',
+  //         filter: `mom_id=eq.${user.id}`,
+  //       },
+  //       (payload) => {
+  //         const newOrder = payload.new as Order;
+  //         setPendingOrders(prev => [...prev, newOrder]);
+  //         setShowNotification(true);
           
-          // Play notification sound
-          const audio = new Audio('/notification.mp3');
-          audio.play().catch(() => {});
+  //         // Play notification sound
+  //         const audio = new Audio('/notification.mp3');
+  //         audio.play().catch(() => {});
           
-          // Show toast notification
-          toast.success('New order received!', {
-            icon: '🔔',
-            duration: 5000,
-          });
-        }
-      )
-      .subscribe();
+  //         // Show toast notification
+  //         toast.success('New order received!', {
+  //           icon: '🔔',
+  //           duration: 5000,
+  //         });
+  //       }
+  //     )
+  //     .subscribe();
 
-    // Fetch existing pending orders
-    const fetchPendingOrders = async () => {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('mom_id', user.id)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
+  //   // Fetch existing pending orders
+  //   const fetchPendingOrders = async () => {
+  //     const { data, error } = await supabase
+  //       .from('orders')
+  //       .select('*')
+  //       .eq('mom_id', user.id)
+  //       .eq('status', 'pending')
+  //       .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching pending orders:', error);
-        return;
-      }
+  //     if (error) {
+  //       console.error('Error fetching pending orders:', error);
+  //       return;
+  //     }
 
-      setPendingOrders(data || []);
-      if (data && data.length > 0) {
-        setShowNotification(true);
-      }
-    };
+  //     setPendingOrders(data || []);
+  //     if (data && data.length > 0) {
+  //       setShowNotification(true);
+  //     }
+  //   };
 
-    fetchPendingOrders();
+  //   fetchPendingOrders();
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [user]);
+  //   return () => {
+  //     subscription.unsubscribe();
+  //   };
+  // }, [user]);
 
-  const handleAcceptOrder = async (orderId: string) => {
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'accepted',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
+  // const handleAcceptOrder = async (orderId: string) => {
+  //   try {
+  //     const { error } = await supabase
+  //       .from('orders')
+  //       .update({ 
+  //         status: 'accepted',
+  //         updated_at: new Date().toISOString()
+  //       })
+  //       .eq('id', orderId);
 
-      if (error) throw error;
+  //     if (error) throw error;
 
-      setPendingOrders(prev => prev.filter(order => order.id !== orderId));
-      toast.success('Order accepted! Start cooking 👩‍🍳');
+  //     setPendingOrders(prev => prev.filter(order => order.id !== orderId));
+  //     toast.success('Order accepted! Start cooking 👩‍🍳');
       
-      // If no more pending orders, hide notification
-      if (pendingOrders.length === 1) {
-        setShowNotification(false);
-      }
-    } catch (error) {
-      console.error('Error accepting order:', error);
-      toast.error('Failed to accept order');
-    }
-  };
+  //     // If no more pending orders, hide notification
+  //     if (pendingOrders.length === 1) {
+  //       setShowNotification(false);
+  //     }
+  //   } catch (error) {
+  //     console.error('Error accepting order:', error);
+  //     toast.error('Failed to accept order');
+  //   }
+  // };
 
-  const handleRejectOrder = async (orderId: string) => {
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'cancelled',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
+  // const handleRejectOrder = async (orderId: string) => {
+  //   try {
+  //     const { error } = await supabase
+  //       .from('orders')
+  //       .update({ 
+  //         status: 'cancelled',
+  //         updated_at: new Date().toISOString()
+  //       })
+  //       .eq('id', orderId);
 
-      if (error) throw error;
+  //     if (error) throw error;
 
-      setPendingOrders(prev => prev.filter(order => order.id !== orderId));
-      toast.error('Order rejected');
+  //     setPendingOrders(prev => prev.filter(order => order.id !== orderId));
+  //     toast.error('Order rejected');
       
-      // If no more pending orders, hide notification
-      if (pendingOrders.length === 1) {
-        setShowNotification(false);
-      }
-    } catch (error) {
-      console.error('Error rejecting order:', error);
-      toast.error('Failed to reject order');
-    }
-  };
+  //     // If no more pending orders, hide notification
+  //     if (pendingOrders.length === 1) {
+  //       setShowNotification(false);
+  //     }
+  //   } catch (error) {
+  //     console.error('Error rejecting order:', error);
+  //     toast.error('Failed to reject order');
+  //   }
+  // };
 
   if (!user || user.role !== 'mom' || !showNotification || pendingOrders.length === 0) {
     return null;
@@ -199,7 +199,7 @@ const OrderNotification: React.FC = () => {
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => handleAcceptOrder(order.id)}
+                      // onClick={() => handleAcceptOrder(order.id)}
                       className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
                     >
                       <CheckCircle className="h-4 w-4" />
@@ -209,7 +209,7 @@ const OrderNotification: React.FC = () => {
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => handleRejectOrder(order.id)}
+                      // onClick={() => handleRejectOrder(order.id)}
                       className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
                     >
                       <X className="h-4 w-4" />
