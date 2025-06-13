@@ -1,54 +1,7 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-export interface IUser extends Document {
-  _id: string;
-  email: string;
-  password: string;
-  name: string;
-  phone: string;
-  role: 'foodie' | 'mom' | 'delivery';
-  address?: string;
-  avatar_url?: string;
-  is_verified: boolean;
-  created_at: Date;
-  updated_at: Date;
-  comparePassword(candidatePassword: string): Promise<boolean>;
-}
-
-export interface IMom extends Document {
-  user_id: mongoose.Types.ObjectId;
-  kitchen_name: string;
-  specialties: string[];
-  rating: number;
-  total_orders: number;
-  is_available: boolean;
-  delivery_radius: number;
-  location?: {
-    lat: number;
-    lng: number;
-    address: string;
-  };
-  created_at: Date;
-  updated_at: Date;
-}
-
-export interface IDeliveryPartner extends Document {
-  user_id: mongoose.Types.ObjectId;
-  vehicle_type: 'bike' | 'scooter' | 'bicycle';
-  license_number: string;
-  is_online: boolean;
-  current_location?: {
-    lat: number;
-    lng: number;
-  };
-  total_deliveries: number;
-  rating: number;
-  created_at: Date;
-  updated_at: Date;
-}
-
-const UserSchema = new Schema<IUser>({
+const UserSchema = new Schema({
   email: {
     type: String,
     required: true,
@@ -90,7 +43,7 @@ const UserSchema = new Schema<IUser>({
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
-const MomSchema = new Schema<IMom>({
+const MomSchema = new Schema({
   user_id: {
     type: Schema.Types.ObjectId,
     ref: 'User',
@@ -131,7 +84,7 @@ const MomSchema = new Schema<IMom>({
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
-const DeliveryPartnerSchema = new Schema<IDeliveryPartner>({
+const DeliveryPartnerSchema = new Schema({
   user_id: {
     type: Schema.Types.ObjectId,
     ref: 'User',
@@ -176,16 +129,16 @@ UserSchema.pre('save', async function(next) {
     const salt = await bcrypt.genSalt(12);
     this.password = await bcrypt.hash(this.password, salt);
     next();
-  } catch (error: any) {
+  } catch (error) {
     next(error);
   }
 });
 
 // Compare password method
-UserSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
+UserSchema.methods.comparePassword = async function(candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-export const User = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
-export const Mom = mongoose.models.Mom || mongoose.model<IMom>('Mom', MomSchema);
-export const DeliveryPartner = mongoose.models.DeliveryPartner || mongoose.model<IDeliveryPartner>('DeliveryPartner', DeliveryPartnerSchema);
+export const User = mongoose.models.User || mongoose.model('User', UserSchema);
+export const Mom = mongoose.models.Mom || mongoose.model('Mom', MomSchema);
+export const DeliveryPartner = mongoose.models.DeliveryPartner || mongoose.model('DeliveryPartner', DeliveryPartnerSchema);

@@ -1,5 +1,5 @@
 import express from 'express';
-import { User, Mom, DeliveryPartner } from '../../src/models/User.js';
+import { User, Mom, DeliveryPartner } from '../models/User.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();

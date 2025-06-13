@@ -1,5 +1,5 @@
 import express from 'express';
-import { MenuItem } from '../../src/models/MenuItem.js';
+import { MenuItem } from '../models/MenuItem.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();

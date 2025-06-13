@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import connectDB from '../src/lib/mongodb.js';
+import { connectDB } from './lib/mongodb.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import menuRoutes from './routes/menu.js';
@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'https://zesty-gaufre-6085be.netlify.app'],
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'https://mummy-meals.vercel.app'],
   credentials: true
 }));
 app.use(express.json());
@@ -36,8 +36,8 @@ app.use('/api/orders', orderRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    success: true, 
+  res.json({
+    success: true,
     message: 'MummyMeals API is running!',
     timestamp: new Date().toISOString()
   });

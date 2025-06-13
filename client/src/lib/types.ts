@@ -1,11 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://amklbbxnfhudzcgnvlfk.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFta2xiYnhuZmh1ZHpjZ252bGZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkzOTM4NzcsImV4cCI6MjA2NDk2OTg3N30.N0s_7COMRI-H48O9IkkPdWl4pzu6VJeOkSoN5Er7vGQ';
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// Database types
 export interface User {
   id: string;
   email: string;

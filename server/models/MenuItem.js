@@ -1,24 +1,6 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
-export interface IMenuItem extends Document {
-  _id: string;
-  mom_id: mongoose.Types.ObjectId;
-  name: string;
-  description: string;
-  price: number;
-  image_url: string;
-  category: string;
-  is_veg: boolean;
-  is_jain: boolean;
-  is_healthy: boolean;
-  tags: string[];
-  preparation_time: number;
-  is_available: boolean;
-  created_at: Date;
-  updated_at: Date;
-}
-
-const MenuItemSchema = new Schema<IMenuItem>({
+const MenuItemSchema = new Schema({
   mom_id: {
     type: Schema.Types.ObjectId,
     ref: 'User',
@@ -72,4 +54,4 @@ const MenuItemSchema = new Schema<IMenuItem>({
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
-export const MenuItem = mongoose.models.MenuItem || mongoose.model<IMenuItem>('MenuItem', MenuItemSchema);
+export const MenuItem = mongoose.models.MenuItem || mongoose.model('MenuItem', MenuItemSchema);
