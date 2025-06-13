@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../contexts/ThemeContext';
+import { menuAPI } from '../lib/api';
 import { 
   Search, 
   Filter, 
@@ -16,6 +17,8 @@ import {
   Eye
 } from 'lucide-react';
 import RealTimeOrderTracker from '../components/OrderTracking/RealTimeOrderTracker';
+import Cart from '../components/Cart/Cart';
+import toast from 'react-hot-toast';
 
 const Menu: React.FC = () => {
   const { theme } = useTheme();
@@ -24,7 +27,10 @@ const Menu: React.FC = () => {
   const [selectedChef, setSelectedChef] = useState('all');
   const [cart, setCart] = useState<{[key: number]: number}>({});
   const [showOrderTracker, setShowOrderTracker] = useState(false);
+  const [showCart, setShowCart] = useState(false);
   const [trackedOrderId, setTrackedOrderId] = useState('');
+  const [menuItems, setMenuItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const categories = [
     { id: 'all', name: 'All Items', icon: '🍽️' },
@@ -43,7 +49,8 @@ const Menu: React.FC = () => {
     { id: 'rekha', name: 'Rekha Didi' }
   ];
 
-  const menuItems = [
+  // Mock data for demonstration
+  const mockMenuItems = [
     {
       id: 1,
       name: 'Dal Chawal Combo',
@@ -61,7 +68,7 @@ const Menu: React.FC = () => {
       isVeg: true,
       isJain: false,
       isHealthy: true,
-      isLive: true // Indicates if this chef is currently cooking
+      isLive: true
     },
     {
       id: 2,
@@ -157,46 +164,31 @@ const Menu: React.FC = () => {
       isJain: true,
       isHealthy: true,
       isLive: false
-    },
-    {
-      id: 7,
-      name: 'Butter Chicken Meal',
-      chef: 'Rekha Didi',
-      chefId: 'rekha',
-      category: 'nonveg',
-      price: 200,
-      rating: 4.9,
-      reviews: 245,
-      distance: '1.5 km',
-      time: '40-45 min',
-      image: 'https://images.pexels.com/photos/2474658/pexels-photo-2474658.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&dpr=1',
-      description: 'Creamy butter chicken with naan, rice, and fresh salad',
-      tags: ['Mughlai', 'Rich', 'Popular'],
-      isVeg: false,
-      isJain: false,
-      isHealthy: false,
-      isLive: true
-    },
-    {
-      id: 8,
-      name: 'Palak Paneer Thali',
-      chef: 'Kavita Ma',
-      chefId: 'kavita',
-      category: 'veg',
-      price: 130,
-      rating: 4.7,
-      reviews: 178,
-      distance: '0.5 km',
-      time: '25-30 min',
-      image: 'https://images.pexels.com/photos/1640772/pexels-photo-1640772.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&dpr=1',
-      description: 'Spinach curry with cottage cheese, roti, rice, and pickle',
-      tags: ['Healthy', 'Iron Rich', 'Traditional'],
-      isVeg: true,
-      isJain: false,
-      isHealthy: true,
-      isLive: false
     }
   ];
+
+  useEffect(() => {
+    loadMenuItems();
+  }, []);
+
+  const loadMenuItems = async () => {
+    try {
+      setLoading(true);
+      // Try to fetch from API, fallback to mock data
+      try {
+        const response = await menuAPI.getMenuItems();
+        setMenuItems(response.items || mockMenuItems);
+      } catch (error) {
+        console.log('Using mock data due to API unavailability');
+        setMenuItems(mockMenuItems);
+      }
+    } catch (error) {
+      console.error('Error loading menu items:', error);
+      setMenuItems(mockMenuItems);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredItems = menuItems.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -208,7 +200,7 @@ const Menu: React.FC = () => {
                            (selectedCategory === 'nonveg' && !item.isVeg) ||
                            (selectedCategory === 'jain' && item.isJain) ||
                            (selectedCategory === 'healthy' && item.isHealthy) ||
-                           (selectedCategory === 'regional' && item.tags.some(tag => tag.includes('Regional') || tag.includes('Punjabi') || tag.includes('Traditional')));
+                           (selectedCategory === 'regional' && item.tags.some((tag: string) => tag.includes('Regional') || tag.includes('Punjabi') || tag.includes('Traditional')));
     
     const matchesChef = selectedChef === 'all' || item.chefId === selectedChef;
 
@@ -220,6 +212,22 @@ const Menu: React.FC = () => {
       ...prev,
       [itemId]: (prev[itemId] || 0) + 1
     }));
+    toast.success('Added to cart!');
+  };
+
+  const updateCartQuantity = (itemId: number, quantity: number) => {
+    if (quantity <= 0) {
+      setCart(prev => {
+        const newCart = { ...prev };
+        delete newCart[itemId];
+        return newCart;
+      });
+    } else {
+      setCart(prev => ({
+        ...prev,
+        [itemId]: quantity
+      }));
+    }
   };
 
   const removeFromCart = (itemId: number) => {
@@ -227,6 +235,10 @@ const Menu: React.FC = () => {
       ...prev,
       [itemId]: Math.max((prev[itemId] || 0) - 1, 0)
     }));
+  };
+
+  const clearCart = () => {
+    setCart({});
   };
 
   const getTotalItems = () => {
@@ -240,19 +252,22 @@ const Menu: React.FC = () => {
     }, 0);
   };
 
-  const handleOrderNow = () => {
-    // Simulate order placement
-    const orderId = `ORD${Date.now()}`;
-    setTrackedOrderId(orderId);
-    setShowOrderTracker(true);
-    setCart({}); // Clear cart after order
-  };
-
   const handleTrackOrder = (itemId: number) => {
     const orderId = `ORD${itemId}${Date.now()}`;
     setTrackedOrderId(orderId);
     setShowOrderTracker(true);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen pt-16 bg-gray-50 dark:bg-gray-900 warm:bg-orange-100 green:bg-green-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading delicious meals...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen pt-16 bg-gray-50 dark:bg-gray-900 warm:bg-orange-100 green:bg-green-100">
@@ -266,7 +281,7 @@ const Menu: React.FC = () => {
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900 mb-4">
             Delicious Home-Cooked Meals
           </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600 max-w-2xl mx-auto">
+          <p className="text-xl text-gray-600 dark:text-gray-300 warm:text-gray-700 green:text-gray-600 max-w-2xl mx-auto">
             Browse fresh, homemade meals prepared with love by our certified home chefs in your neighborhood.
           </p>
         </motion.div>
@@ -333,7 +348,7 @@ const Menu: React.FC = () => {
           transition={{ delay: 0.2 }}
           className="mb-6 text-center"
         >
-          <p className="text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600">
+          <p className="text-gray-600 dark:text-gray-300 warm:text-gray-700 green:text-gray-600">
             Showing {filteredItems.length} delicious meal{filteredItems.length !== 1 ? 's' : ''}
           </p>
         </motion.div>
@@ -424,7 +439,7 @@ const Menu: React.FC = () => {
 
                   <div className="flex items-center space-x-2 mb-3">
                     <ChefHat className="h-4 w-4 text-orange-500" />
-                    <span className="text-sm text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600 font-medium">
+                    <span className="text-sm text-gray-600 dark:text-gray-300 warm:text-gray-700 green:text-gray-600 font-medium">
                       {item.chef}
                     </span>
                     {item.isLive && (
@@ -432,7 +447,7 @@ const Menu: React.FC = () => {
                     )}
                   </div>
 
-                  <p className="text-sm text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600 mb-4 line-clamp-2">
+                  <p className="text-sm text-gray-600 dark:text-gray-300 warm:text-gray-700 green:text-gray-600 mb-4 line-clamp-2">
                     {item.description}
                   </p>
 
@@ -455,7 +470,7 @@ const Menu: React.FC = () => {
                   </div>
 
                   <div className="flex flex-wrap gap-1 mb-4">
-                    {item.tags.slice(0, 3).map((tag, tagIndex) => (
+                    {item.tags.slice(0, 3).map((tag: string, tagIndex: number) => (
                       <span
                         key={tagIndex}
                         className="px-2 py-1 bg-orange-100 dark:bg-orange-900/20 warm:bg-orange-200 green:bg-green-100 text-orange-800 dark:text-orange-300 warm:text-orange-900 green:text-green-800 text-xs rounded-full"
@@ -518,7 +533,7 @@ const Menu: React.FC = () => {
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900 mb-2">
               No meals found
             </h3>
-            <p className="text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600">
+            <p className="text-gray-600 dark:text-gray-300 warm:text-gray-700 green:text-gray-600">
               Try adjusting your search or filters to find delicious meals.
             </p>
           </motion.div>
@@ -531,12 +546,12 @@ const Menu: React.FC = () => {
               initial={{ opacity: 0, y: 100 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 100 }}
-              className="fixed bottom-6 right-6 z-50"
+              className="fixed bottom-6 right-6 z-40"
             >
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={handleOrderNow}
+                onClick={() => setShowCart(true)}
                 className="flex items-center space-x-3 px-6 py-4 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
               >
                 <ShoppingCart className="h-6 w-6" />
@@ -548,6 +563,16 @@ const Menu: React.FC = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Cart Modal */}
+        <Cart
+          items={cart}
+          menuItems={menuItems}
+          onUpdateQuantity={updateCartQuantity}
+          onClearCart={clearCart}
+          isOpen={showCart}
+          onClose={() => setShowCart(false)}
+        />
 
         {/* Real-Time Order Tracker Modal */}
         {showOrderTracker && (

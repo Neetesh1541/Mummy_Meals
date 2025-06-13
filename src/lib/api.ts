@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://mummymeals-api.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -66,6 +66,57 @@ export interface SignupData {
   additionalData?: any;
 }
 
+export interface MenuItem {
+  _id: string;
+  mom_id: string;
+  name: string;
+  description: string;
+  price: number;
+  image_url: string;
+  category: string;
+  is_veg: boolean;
+  is_jain: boolean;
+  is_healthy: boolean;
+  tags: string[];
+  preparation_time: number;
+  is_available: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Order {
+  _id: string;
+  foodie_id: string;
+  mom_id: string;
+  delivery_partner_id?: string;
+  items: OrderItem[];
+  total_amount: number;
+  status: 'pending' | 'accepted' | 'preparing' | 'ready' | 'picked_up' | 'delivered' | 'cancelled';
+  delivery_address: string;
+  delivery_instructions?: string;
+  estimated_delivery_time?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrderItem {
+  menu_item_id: string;
+  quantity: number;
+  price: number;
+  special_instructions?: string;
+}
+
+export interface PaymentData {
+  amount: number;
+  currency: string;
+  order_id: string;
+  customer_details: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+}
+
 // Auth API calls
 export const authAPI = {
   login: async (data: LoginData): Promise<AuthResponse> => {
@@ -85,6 +136,60 @@ export const authAPI = {
 
   updateProfile: async (data: Partial<User>): Promise<{ success: boolean; user: User }> => {
     const response = await api.put('/auth/profile', data);
+    return response.data;
+  }
+};
+
+// Menu API calls
+export const menuAPI = {
+  getMenuItems: async (filters?: any): Promise<{ success: boolean; items: MenuItem[] }> => {
+    const response = await api.get('/menu', { params: filters });
+    return response.data;
+  },
+
+  addMenuItem: async (data: Partial<MenuItem>): Promise<{ success: boolean; item: MenuItem }> => {
+    const response = await api.post('/menu', data);
+    return response.data;
+  },
+
+  updateMenuItem: async (id: string, data: Partial<MenuItem>): Promise<{ success: boolean; item: MenuItem }> => {
+    const response = await api.put(`/menu/${id}`, data);
+    return response.data;
+  },
+
+  deleteMenuItem: async (id: string): Promise<{ success: boolean }> => {
+    const response = await api.delete(`/menu/${id}`);
+    return response.data;
+  }
+};
+
+// Order API calls
+export const orderAPI = {
+  createOrder: async (data: Partial<Order>): Promise<{ success: boolean; order: Order }> => {
+    const response = await api.post('/orders', data);
+    return response.data;
+  },
+
+  getMyOrders: async (): Promise<{ success: boolean; orders: Order[] }> => {
+    const response = await api.get('/orders/my-orders');
+    return response.data;
+  },
+
+  updateOrderStatus: async (id: string, status: string): Promise<{ success: boolean; order: Order }> => {
+    const response = await api.put(`/orders/${id}/status`, { status });
+    return response.data;
+  }
+};
+
+// Payment API calls
+export const paymentAPI = {
+  createPaymentIntent: async (data: PaymentData): Promise<{ success: boolean; client_secret: string; payment_intent_id: string }> => {
+    const response = await api.post('/payments/create-intent', data);
+    return response.data;
+  },
+
+  confirmPayment: async (payment_intent_id: string): Promise<{ success: boolean; payment: any }> => {
+    const response = await api.post('/payments/confirm', { payment_intent_id });
     return response.data;
   }
 };

@@ -17,7 +17,8 @@ import {
   Play,
   Quote,
   Zap,
-  Globe
+  Globe,
+  CreditCard
 } from 'lucide-react';
 import EnhancedWaves from '../components/UI/EnhancedWaves';
 import MummyMealsLogo from '../components/UI/MummyMealsLogo';
@@ -47,10 +48,10 @@ const Home: React.FC = () => {
       color: "from-green-500 to-teal-500"
     },
     {
-      icon: Heart,
-      title: "Made with Love",
-      description: "Every meal is prepared with the same care and love that a mother puts into cooking for her family.",
-      color: "from-red-500 to-pink-500"
+      icon: CreditCard,
+      title: "Secure Payments",
+      description: "Multiple payment options including online payments and cash on delivery for your convenience.",
+      color: "from-purple-500 to-pink-500"
     }
   ];
 
@@ -134,7 +135,7 @@ const Home: React.FC = () => {
               </span>
             </h1>
             
-            <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 warm:text-gray-700 green:text-gray-600 mb-8 max-w-4xl mx-auto leading-relaxed">
+            <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-200 warm:text-gray-700 green:text-gray-600 mb-8 max-w-4xl mx-auto leading-relaxed">
               Connect with loving home chefs in real-time. Order fresh, authentic meals and watch them being prepared with love, 
               delivered hot to your doorstep by our trusted delivery partners.
             </p>
@@ -146,21 +147,21 @@ const Home: React.FC = () => {
                 className="flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full border border-white/30"
               >
                 <Zap className="h-5 w-5 text-yellow-500" />
-                <span className="text-gray-700 dark:text-gray-300 warm:text-gray-800 green:text-gray-700 font-medium">Instant Notifications</span>
+                <span className="text-gray-700 dark:text-gray-200 warm:text-gray-800 green:text-gray-700 font-medium">Instant Notifications</span>
               </motion.div>
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 className="flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full border border-white/30"
               >
                 <Globe className="h-5 w-5 text-blue-500" />
-                <span className="text-gray-700 dark:text-gray-300 warm:text-gray-800 green:text-gray-700 font-medium">Live Tracking</span>
+                <span className="text-gray-700 dark:text-gray-200 warm:text-gray-800 green:text-gray-700 font-medium">Live Tracking</span>
               </motion.div>
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 className="flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full border border-white/30"
               >
                 <Clock className="h-5 w-5 text-green-500" />
-                <span className="text-gray-700 dark:text-gray-300 warm:text-gray-800 green:text-gray-700 font-medium">30-Min Delivery</span>
+                <span className="text-gray-700 dark:text-gray-200 warm:text-gray-800 green:text-gray-700 font-medium">30-Min Delivery</span>
               </motion.div>
             </div>
           </motion.div>
@@ -236,7 +237,7 @@ const Home: React.FC = () => {
                 <div className="text-3xl md:text-4xl font-bold text-orange-600 dark:text-orange-400 warm:text-orange-700 green:text-green-600 mb-2">
                   {stat.number}
                 </div>
-                <div className="text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600 font-medium">
+                <div className="text-gray-600 dark:text-gray-300 warm:text-gray-700 green:text-gray-600 font-medium">
                   {stat.label}
                 </div>
               </motion.div>
@@ -262,7 +263,7 @@ const Home: React.FC = () => {
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900 mb-4">
               Why Choose MummyMeals?
             </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-600 dark:text-gray-300 warm:text-gray-700 green:text-gray-600 max-w-3xl mx-auto">
               Experience the future of home-cooked food delivery with real-time connectivity and instant satisfaction.
             </p>
           </motion.div>
@@ -287,7 +288,7 @@ const Home: React.FC = () => {
                     <h3 className="text-xl font-semibold text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900 mb-4">
                       {feature.title}
                     </h3>
-                    <p className="text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600 leading-relaxed">
+                    <p className="text-gray-600 dark:text-gray-300 warm:text-gray-700 green:text-gray-600 leading-relaxed">
                       {feature.description}
                     </p>
                   </div>
@@ -311,7 +312,7 @@ const Home: React.FC = () => {
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900 mb-4">
               How It Works
             </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-600 dark:text-gray-300 warm:text-gray-700 green:text-gray-600 max-w-3xl mx-auto">
               From order to delivery - experience seamless real-time food delivery in just 3 simple steps!
             </p>
           </motion.div>
@@ -348,7 +349,7 @@ const Home: React.FC = () => {
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900 mb-4">
                     {step.title}
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600 leading-relaxed">
+                  <p className="text-gray-600 dark:text-gray-300 warm:text-gray-700 green:text-gray-600 leading-relaxed">
                     {step.description}
                   </p>
                 </motion.div>
@@ -375,7 +376,7 @@ const Home: React.FC = () => {
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900 mb-4">
               What Our Community Says
             </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-600 dark:text-gray-300 warm:text-gray-700 green:text-gray-600 max-w-3xl mx-auto">
               Real stories from people who experience the magic of instant home-cooked meals.
             </p>
           </motion.div>
@@ -400,7 +401,7 @@ const Home: React.FC = () => {
                   </div>
                 </div>
                 
-                <p className="text-gray-700 dark:text-gray-300 warm:text-gray-800 green:text-gray-700 mb-6 leading-relaxed italic">
+                <p className="text-gray-700 dark:text-gray-200 warm:text-gray-800 green:text-gray-700 mb-6 leading-relaxed italic">
                   "{testimonial.text}"
                 </p>
                 
@@ -414,7 +415,7 @@ const Home: React.FC = () => {
                     <div className="font-semibold text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900">
                       {testimonial.name}
                     </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600">
+                    <div className="text-sm text-gray-600 dark:text-gray-300 warm:text-gray-700 green:text-gray-600">
                       {testimonial.role}
                     </div>
                   </div>

@@ -16,7 +16,7 @@ const EnhancedWaves: React.FC<EnhancedWavesProps> = ({
     hero: {
       colors: {
         light: ['#fed7aa', '#fdba74', '#fb923c', '#f97316'],
-        dark: ['#9a3412', '#c2410c', '#ea580c', '#f97316'],
+        dark: ['#1f2937', '#374151', '#4b5563', '#6b7280'],
         warm: ['#ffedd5', '#fed7aa', '#fdba74', '#fb923c'],
         green: ['#dcfce7', '#bbf7d0', '#86efac', '#4ade80']
       },
@@ -26,7 +26,7 @@ const EnhancedWaves: React.FC<EnhancedWavesProps> = ({
     section: {
       colors: {
         light: ['#fed7aa', '#fdba74', '#fb923c'],
-        dark: ['#c2410c', '#ea580c', '#f97316'],
+        dark: ['#374151', '#4b5563', '#6b7280'],
         warm: ['#fed7aa', '#fdba74', '#fb923c'],
         green: ['#bbf7d0', '#86efac', '#4ade80']
       },
@@ -36,7 +36,7 @@ const EnhancedWaves: React.FC<EnhancedWavesProps> = ({
     footer: {
       colors: {
         light: ['#9a3412', '#c2410c', '#ea580c'],
-        dark: ['#7c2d12', '#9a3412', '#c2410c'],
+        dark: ['#111827', '#1f2937', '#374151'],
         warm: ['#c2410c', '#ea580c', '#f97316'],
         green: ['#166534', '#15803d', '#16a34a']
       },
@@ -260,7 +260,11 @@ const EnhancedWaves: React.FC<EnhancedWavesProps> = ({
       </div>
 
       {/* Gradient Overlay for better text readability */}
-      <div className="absolute inset-0 bg-gradient-to-t from-transparent via-transparent to-white/10" />
+      <div className={`absolute inset-0 ${
+        theme === 'dark' 
+          ? 'bg-gradient-to-t from-gray-900/80 via-gray-800/40 to-gray-700/20' 
+          : 'bg-gradient-to-t from-transparent via-transparent to-white/10'
+      }`} />
     </div>
   );
 };
