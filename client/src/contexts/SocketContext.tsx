@@ -109,36 +109,74 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       }
 
       // Show toast notification
-      toast.success('New order received!', {
-        icon: '🔔',
-        duration: 5000,
-      });
+      if (user?.role === 'mom') {
+        toast.success('🔔 New order received!', {
+          duration: 5000,
+        });
+      }
 
       // Dispatch custom event for components to listen to
       window.dispatchEvent(new CustomEvent('new_order', { detail: data }));
+    });
+
+    // Listen for order creation confirmation (for customers)
+    newSocket.on('order_created', (data) => {
+      console.log('✅ Order created confirmation:', data);
+      toast.success(data.message, {
+        icon: '✅',
+        duration: 4000,
+      });
     });
 
     // Listen for order status updates
     newSocket.on('order_status_update', (data) => {
       console.log('📱 Order status update:', data);
       
-      // Show toast notification
+      // Show appropriate toast based on status
+      const statusIcons = {
+        accepted: '✅',
+        preparing: '👩‍🍳',
+        ready: '📦',
+        picked_up: '🚚',
+        delivered: '🎉',
+        cancelled: '❌'
+      };
+
       toast.success(data.message, {
-        icon: '📋',
-        duration: 3000,
+        icon: statusIcons[data.status as keyof typeof statusIcons] || '📋',
+        duration: 4000,
       });
 
       // Dispatch custom event for components to listen to
       window.dispatchEvent(new CustomEvent('order_status_update', { detail: data }));
     });
 
+    // Listen for order rejection (for customers)
+    newSocket.on('order_rejected', (data) => {
+      console.log('❌ Order rejected:', data);
+      toast.error(data.message, {
+        icon: '❌',
+        duration: 6000,
+      });
+      window.dispatchEvent(new CustomEvent('order_rejected', { detail: data }));
+    });
+
     // Listen for delivery partner assignment
     newSocket.on('delivery_assigned', (data) => {
       console.log('🚚 Delivery partner assigned:', data);
-      toast.success('Delivery partner assigned!', {
-        icon: '🚚',
-        duration: 3000,
-      });
+      
+      if (user?.role === 'delivery') {
+        toast.success('New delivery assigned!', {
+          icon: '🚚',
+          duration: 4000,
+        });
+      } else {
+        toast.success('Delivery partner assigned to your order!', {
+          icon: '🚚',
+          duration: 3000,
+        });
+      }
+      
       window.dispatchEvent(new CustomEvent('delivery_assigned', { detail: data }));
     });
 
@@ -150,6 +188,28 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         duration: 3000,
       });
       window.dispatchEvent(new CustomEvent('delivery_update', { detail: data }));
+    });
+
+    // Listen for cooking progress updates
+    newSocket.on('cooking_progress', (data) => {
+      console.log('👩‍🍳 Cooking progress:', data);
+      toast.success(data.message, {
+        icon: '👩‍🍳',
+        duration: 3000,
+      });
+      window.dispatchEvent(new CustomEvent('cooking_progress', { detail: data }));
+    });
+
+    // Listen for feedback received (for moms)
+    newSocket.on('feedback_received', (data) => {
+      console.log('⭐ Feedback received:', data);
+      if (user?.role === 'mom') {
+        toast.success(`New feedback received: ${data.rating} stars!`, {
+          icon: '⭐',
+          duration: 4000,
+        });
+      }
+      window.dispatchEvent(new CustomEvent('feedback_received', { detail: data }));
     });
 
     setSocket(newSocket);

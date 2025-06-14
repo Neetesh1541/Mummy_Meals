@@ -7,14 +7,19 @@ const router = express.Router();
 
 // Helper function to find nearby delivery partners
 const findNearbyDeliveryPartners = async (location) => {
-  // In a real app, you'd use geospatial queries
-  // For now, we'll return a mock delivery partner
-  const deliveryPartners = await User.find({ 
-    role: 'delivery',
-    // Add location-based filtering here
-  }).limit(5);
-  
-  return deliveryPartners.length > 0 ? deliveryPartners[0] : null;
+  try {
+    // In a real app, you'd use geospatial queries
+    // For now, we'll return available delivery partners
+    const deliveryPartners = await User.find({ 
+      role: 'delivery'
+      // Add location-based filtering here in production
+    }).limit(5);
+    
+    return deliveryPartners.length > 0 ? deliveryPartners[0] : null;
+  } catch (error) {
+    console.error('Error finding delivery partners:', error);
+    return null;
+  }
 };
 
 // Create new order (foodies only)
@@ -27,9 +32,35 @@ router.post('/', authMiddleware, async (req, res) => {
       });
     }
 
+    const { mom_id, items, total_amount, delivery_address, delivery_instructions, payment_method } = req.body;
+
+    // Validate required fields
+    if (!mom_id || !items || !Array.isArray(items) || items.length === 0 || !total_amount || !delivery_address) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: mom_id, items, total_amount, delivery_address'
+      });
+    }
+
+    // Verify the mom exists
+    const mom = await User.findById(mom_id);
+    if (!mom || mom.role !== 'mom') {
+      return res.status(404).json({
+        success: false,
+        message: 'Chef not found'
+      });
+    }
+
     const orderData = {
-      ...req.body,
-      foodie_id: req.userId
+      foodie_id: req.userId,
+      mom_id,
+      items,
+      total_amount,
+      delivery_address,
+      delivery_instructions: delivery_instructions || '',
+      payment_method: payment_method || 'cod',
+      status: 'pending',
+      estimated_delivery_time: new Date(Date.now() + 45 * 60 * 1000) // 45 minutes from now
     };
 
     const order = new Order(orderData);
@@ -37,32 +68,44 @@ router.post('/', authMiddleware, async (req, res) => {
 
     // Populate order details for real-time notification
     const populatedOrder = await Order.findById(order._id)
-      .populate('foodie_id', 'name phone address')
-      .populate('mom_id', 'name phone');
+      .populate('foodie_id', 'name phone address email')
+      .populate('mom_id', 'name phone email');
+
+    console.log('📦 Order created:', {
+      orderId: populatedOrder._id,
+      customer: populatedOrder.foodie_id.name,
+      chef: populatedOrder.mom_id.name,
+      amount: populatedOrder.total_amount
+    });
 
     // Get Socket.IO instance and emit real-time notification to the mom
     const io = req.app.get('io');
     if (io && populatedOrder.mom_id) {
       // Emit to specific mom
-      io.to(`mom_${populatedOrder.mom_id._id}`).emit('new_order', {
+      const momNotification = {
         order: populatedOrder,
-        message: `New order from ${populatedOrder.foodie_id.name}!`,
-        timestamp: new Date().toISOString()
-      });
+        message: `New order from ${populatedOrder.foodie_id.name} - ₹${populatedOrder.total_amount}`,
+        timestamp: new Date().toISOString(),
+        type: 'new_order'
+      };
+
+      io.to(`mom_${populatedOrder.mom_id._id}`).emit('new_order', momNotification);
+      io.to(`user_${populatedOrder.mom_id._id}`).emit('new_order', momNotification);
       
       // Also emit to user's own room for confirmation
       io.to(`user_${populatedOrder.foodie_id._id}`).emit('order_created', {
         order: populatedOrder,
-        message: 'Your order has been placed successfully!',
+        message: 'Your order has been placed successfully! Chef will be notified instantly.',
         timestamp: new Date().toISOString()
       });
       
-      console.log(`📱 New order notification sent to mom: ${populatedOrder.mom_id._id}`);
+      console.log(`🔔 Real-time notification sent to mom: ${populatedOrder.mom_id._id}`);
+      console.log(`✅ Order confirmation sent to customer: ${populatedOrder.foodie_id._id}`);
     }
 
     res.status(201).json({
       success: true,
-      message: 'Order created successfully',
+      message: 'Order created successfully and chef notified instantly!',
       order: populatedOrder
     });
 
@@ -90,9 +133,9 @@ router.get('/my-orders', authMiddleware, async (req, res) => {
     }
 
     const orders = await Order.find(filter)
-      .populate('foodie_id', 'name phone address')
-      .populate('mom_id', 'name phone')
-      .populate('delivery_partner_id', 'name phone')
+      .populate('foodie_id', 'name phone address email')
+      .populate('mom_id', 'name phone email')
+      .populate('delivery_partner_id', 'name phone email')
       .sort({ created_at: -1 });
 
     res.json({
@@ -116,6 +159,13 @@ router.put('/:id/status', authMiddleware, async (req, res) => {
     const { status } = req.body;
     const orderId = req.params.id;
 
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Status is required'
+      });
+    }
+
     let filter = { _id: orderId };
 
     // Only allow relevant users to update order status
@@ -131,14 +181,14 @@ router.put('/:id/status', authMiddleware, async (req, res) => {
     }
 
     const order = await Order.findOne(filter)
-      .populate('foodie_id', 'name phone address')
-      .populate('mom_id', 'name phone')
-      .populate('delivery_partner_id', 'name phone');
+      .populate('foodie_id', 'name phone address email')
+      .populate('mom_id', 'name phone email')
+      .populate('delivery_partner_id', 'name phone email');
 
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: 'Order not found'
+        message: 'Order not found or access denied'
       });
     }
 
@@ -151,28 +201,31 @@ router.put('/:id/status', authMiddleware, async (req, res) => {
         // Notify delivery partner
         const io = req.app.get('io');
         if (io) {
-          io.to(`user_${deliveryPartner._id}`).emit('delivery_assigned', {
+          const deliveryNotification = {
             order: order,
-            message: 'New delivery assigned to you!',
+            message: `New delivery assigned! Order #${order._id.toString().slice(-6)} - ₹${order.total_amount}`,
             timestamp: new Date().toISOString()
-          });
+          };
+
+          io.to(`user_${deliveryPartner._id}`).emit('delivery_assigned', deliveryNotification);
+          io.to(`delivery_${deliveryPartner._id}`).emit('delivery_assigned', deliveryNotification);
+          
+          console.log(`🚚 Delivery partner ${deliveryPartner._id} assigned to order ${order._id}`);
         }
       }
     }
 
     // Update order status
+    const oldStatus = order.status;
     order.status = status;
     order.updated_at = new Date();
-    
-    // Set estimated delivery time for certain statuses
-    if (status === 'accepted') {
-      order.estimated_delivery_time = new Date(Date.now() + 45 * 60 * 1000); // 45 minutes from now
-    }
 
     await order.save();
 
     // Populate the updated order
-    await order.populate('delivery_partner_id', 'name phone');
+    await order.populate('delivery_partner_id', 'name phone email');
+
+    console.log(`📋 Order ${order._id} status updated: ${oldStatus} → ${status}`);
 
     // Get Socket.IO instance and emit real-time status updates
     const io = req.app.get('io');
@@ -181,8 +234,9 @@ router.put('/:id/status', authMiddleware, async (req, res) => {
         orderId: order._id,
         status: order.status,
         order: order,
-        message: getStatusMessage(status),
-        timestamp: new Date().toISOString()
+        message: getStatusMessage(status, req.user.role),
+        timestamp: new Date().toISOString(),
+        updatedBy: req.user.role
       };
 
       // Notify the foodie about status update
@@ -196,12 +250,21 @@ router.put('/:id/status', authMiddleware, async (req, res) => {
         io.to(`user_${order.delivery_partner_id._id}`).emit('order_status_update', updateData);
       }
 
-      console.log(`📱 Order status update sent for order: ${order._id} (${status})`);
+      // Special handling for rejected orders
+      if (status === 'cancelled' && req.user.role === 'mom') {
+        io.to(`user_${order.foodie_id._id}`).emit('order_rejected', {
+          orderId: order._id,
+          message: `Your order has been cancelled by ${order.mom_id.name}. You will receive a full refund.`,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      console.log(`🔔 Real-time status update sent for order: ${order._id} (${status})`);
     }
 
     res.json({
       success: true,
-      message: 'Order status updated successfully',
+      message: `Order status updated to ${status}`,
       order
     });
 
@@ -221,9 +284,9 @@ router.get('/:id', authMiddleware, async (req, res) => {
     const orderId = req.params.id;
     
     const order = await Order.findById(orderId)
-      .populate('foodie_id', 'name phone address')
-      .populate('mom_id', 'name phone')
-      .populate('delivery_partner_id', 'name phone');
+      .populate('foodie_id', 'name phone address email')
+      .populate('mom_id', 'name phone email')
+      .populate('delivery_partner_id', 'name phone email');
 
     if (!order) {
       return res.status(404).json({
@@ -261,15 +324,15 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 // Helper function to get status message
-function getStatusMessage(status) {
+function getStatusMessage(status, updatedBy) {
   const messages = {
     pending: 'Order is waiting for chef confirmation',
-    accepted: 'Chef has accepted your order and will start cooking soon',
-    preparing: 'Your delicious meal is being prepared with love',
-    ready: 'Your order is ready! Delivery partner will pick it up soon',
-    picked_up: 'Your order is on the way to you',
-    delivered: 'Order delivered successfully! Enjoy your meal!',
-    cancelled: 'Order has been cancelled'
+    accepted: 'Chef has accepted your order and will start cooking soon! 👩‍🍳',
+    preparing: 'Your delicious meal is being prepared with love ❤️',
+    ready: 'Your order is ready! Delivery partner will pick it up soon 📦',
+    picked_up: 'Your order is on the way to you! 🚚',
+    delivered: 'Order delivered successfully! Enjoy your meal! 🎉',
+    cancelled: updatedBy === 'mom' ? 'Order has been cancelled by the chef' : 'Order has been cancelled'
   };
   return messages[status] || 'Order status updated';
 }

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
-import { Bell, Clock, CheckCircle, X, MapPin, Phone, Star, ChefHat } from 'lucide-react';
+import { Bell, Clock, CheckCircle, X, MapPin, Phone, Star, ChefHat, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Order } from '../lib/types';
 import { orderAPI } from '../lib/api';
@@ -80,7 +80,7 @@ const OrderNotification: React.FC = () => {
       
       if (response.success) {
         setPendingOrders(prev => prev.filter(order => order._id !== orderId));
-        toast.success('Order accepted! Start cooking 👩‍🍳');
+        toast.success('Order accepted! Customer has been notified 👩‍🍳');
         
         // If no more pending orders, hide notification
         if (pendingOrders.length === 1) {
@@ -111,7 +111,7 @@ const OrderNotification: React.FC = () => {
       
       if (response.success) {
         setPendingOrders(prev => prev.filter(order => order._id !== orderId));
-        toast.error('Order rejected');
+        toast.success('Order rejected. Customer has been notified.');
         
         // If no more pending orders, hide notification
         if (pendingOrders.length === 1) {
@@ -211,7 +211,7 @@ const OrderNotification: React.FC = () => {
                       <div className="text-xs text-gray-500 dark:text-gray-400">
                         {order.items.map((item, idx) => (
                           <span key={idx}>
-                            {item.quantity}x Item #{item.menu_item_id}
+                            {item.quantity}x {item.name || `Item #${item.menu_item_id}`}
                             {idx < order.items.length - 1 ? ', ' : ''}
                           </span>
                         ))}
@@ -226,7 +226,28 @@ const OrderNotification: React.FC = () => {
                         </p>
                       </div>
                     )}
+
+                    {/* Payment Method */}
+                    <div className="mt-2">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        order.payment_method === 'cod' 
+                          ? 'bg-yellow-100 text-yellow-800' 
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {order.payment_method === 'cod' ? 'Cash on Delivery' : 'Online Payment'}
+                      </span>
+                    </div>
                   </div>
+
+                  {/* Connection Status Warning */}
+                  {!isConnected && (
+                    <div className="mb-3 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                      <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
+                        <AlertCircle className="h-4 w-4" />
+                        <span className="text-xs">Connection lost. Please check your internet.</span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Action Buttons */}
                   <div className="flex space-x-2">
@@ -234,8 +255,8 @@ const OrderNotification: React.FC = () => {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => handleAcceptOrder(order._id)}
-                      disabled={loading}
-                      className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium disabled:opacity-50"
+                      disabled={loading || !isConnected}
+                      className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <CheckCircle className="h-4 w-4" />
                       <span>Accept & Cook</span>
@@ -245,8 +266,8 @@ const OrderNotification: React.FC = () => {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => handleRejectOrder(order._id)}
-                      disabled={loading}
-                      className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium disabled:opacity-50"
+                      disabled={loading || !isConnected}
+                      className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <X className="h-4 w-4" />
                       <span>Reject</span>
@@ -264,7 +285,7 @@ const OrderNotification: React.FC = () => {
               <div className="flex items-center justify-center space-x-2 mt-1">
                 <ChefHat className="h-3 w-3 text-orange-500" />
                 <span className="text-xs text-orange-600 dark:text-orange-400 font-medium">
-                  Real-time notifications active
+                  Real-time notifications {isConnected ? 'active' : 'disconnected'}
                 </span>
               </div>
             </div>

@@ -49,13 +49,13 @@ const Menu: React.FC = () => {
     { id: 'rekha', name: 'Rekha Didi' }
   ];
 
-  // Mock data for demonstration
+  // Enhanced mock data with proper chef IDs and pricing
   const mockMenuItems = [
     {
       id: 1,
       name: 'Dal Chawal Combo',
       chef: 'Priya Aunty',
-      chefId: 'priya',
+      chefId: '507f1f77bcf86cd799439011', // Mock ObjectId
       category: 'veg',
       price: 120,
       rating: 4.8,
@@ -74,7 +74,7 @@ const Menu: React.FC = () => {
       id: 2,
       name: 'Rajma Rice Bowl',
       chef: 'Sunita Mummy',
-      chefId: 'sunita',
+      chefId: '507f1f77bcf86cd799439012',
       category: 'veg',
       price: 140,
       rating: 4.9,
@@ -93,7 +93,7 @@ const Menu: React.FC = () => {
       id: 3,
       name: 'Chole Bhature',
       chef: 'Kavita Ma',
-      chefId: 'kavita',
+      chefId: '507f1f77bcf86cd799439013',
       category: 'veg',
       price: 100,
       rating: 4.7,
@@ -112,7 +112,7 @@ const Menu: React.FC = () => {
       id: 4,
       name: 'Chicken Curry Rice',
       chef: 'Rekha Didi',
-      chefId: 'rekha',
+      chefId: '507f1f77bcf86cd799439014',
       category: 'nonveg',
       price: 180,
       rating: 4.6,
@@ -131,7 +131,7 @@ const Menu: React.FC = () => {
       id: 5,
       name: 'Jain Thali Special',
       chef: 'Priya Aunty',
-      chefId: 'priya',
+      chefId: '507f1f77bcf86cd799439011',
       category: 'jain',
       price: 160,
       rating: 4.8,
@@ -150,7 +150,7 @@ const Menu: React.FC = () => {
       id: 6,
       name: 'Quinoa Salad Bowl',
       chef: 'Sunita Mummy',
-      chefId: 'sunita',
+      chefId: '507f1f77bcf86cd799439012',
       category: 'healthy',
       price: 150,
       rating: 4.5,
@@ -177,7 +177,11 @@ const Menu: React.FC = () => {
       // Try to fetch from API, fallback to mock data
       try {
         const response = await menuAPI.getMenuItems();
-        setMenuItems(response.items || mockMenuItems);
+        if (response.success && response.items.length > 0) {
+          setMenuItems(response.items);
+        } else {
+          setMenuItems(mockMenuItems);
+        }
       } catch (error) {
         console.log('Using mock data due to API unavailability');
         setMenuItems(mockMenuItems);
@@ -212,7 +216,10 @@ const Menu: React.FC = () => {
       ...prev,
       [itemId]: (prev[itemId] || 0) + 1
     }));
-    toast.success('Added to cart!');
+    toast.success('Added to cart!', {
+      icon: '🛒',
+      duration: 2000
+    });
   };
 
   const updateCartQuantity = (itemId: number, quantity: number) => {
@@ -239,6 +246,7 @@ const Menu: React.FC = () => {
 
   const clearCart = () => {
     setCart({});
+    toast.success('Cart cleared!');
   };
 
   const getTotalItems = () => {
@@ -492,7 +500,7 @@ const Menu: React.FC = () => {
                         >
                           <Minus className="h-4 w-4" />
                         </motion.button>
-                        <span className="font-semibold text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900">
+                        <span className="font-semibold text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900 min-w-[2rem] text-center">
                           {cart[item.id]}
                         </span>
                         <motion.button
@@ -514,6 +522,18 @@ const Menu: React.FC = () => {
                         <ShoppingCart className="h-4 w-4" />
                         <span>Add to Cart</span>
                       </motion.button>
+                    )}
+                    
+                    {/* Price display for cart items */}
+                    {cart[item.id] && (
+                      <div className="text-right">
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          ₹{item.price} × {cart[item.id]}
+                        </div>
+                        <div className="font-bold text-orange-600 dark:text-orange-400">
+                          ₹{item.price * cart[item.id]}
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -554,7 +574,12 @@ const Menu: React.FC = () => {
                 onClick={() => setShowCart(true)}
                 className="flex items-center space-x-3 px-6 py-4 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
               >
-                <ShoppingCart className="h-6 w-6" />
+                <div className="relative">
+                  <ShoppingCart className="h-6 w-6" />
+                  <div className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                    <span className="text-xs font-bold">{getTotalItems()}</span>
+                  </div>
+                </div>
                 <div className="text-left">
                   <div className="font-semibold">{getTotalItems()} items</div>
                   <div className="text-sm opacity-90">₹{getTotalPrice()}</div>
