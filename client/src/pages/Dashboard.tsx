@@ -28,9 +28,13 @@ import {
   X,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  Eye,
+  Phone,
+  Navigation
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import RealTimeOrderTracker from '../components/OrderTracking/RealTimeOrderTracker';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -40,6 +44,8 @@ const Dashboard: React.FC = () => {
   const [menuItems, setMenuItems] = useState<any[]>([]);
   const [showAddMenuItem, setShowAddMenuItem] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [showOrderTracker, setShowOrderTracker] = useState(false);
+  const [trackedOrderId, setTrackedOrderId] = useState('');
   const [newMenuItem, setNewMenuItem] = useState({
     name: '',
     description: '',
@@ -65,35 +71,89 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     // Listen for real-time order updates
-    const handleNewOrder = (data: any) => {
-      console.log('New order received:', data);
-      setOrders(prev => [data.order, ...prev]);
-      toast.success('New order received!', {
-        icon: '🔔',
-        duration: 5000,
-      });
+    const handleNewOrder = (event: any) => {
+      console.log('New order received:', event.detail);
+      setOrders(prev => [event.detail.order, ...prev]);
+      
+      if (isMom) {
+        toast.success(`New order from ${event.detail.order.foodie_id?.name}!`, {
+          icon: '🔔',
+          duration: 5000,
+        });
+      }
     };
 
-    const handleOrderStatusUpdate = (data: any) => {
-      console.log('Order status updated:', data);
+    const handleOrderStatusUpdate = (event: any) => {
+      console.log('Order status updated:', event.detail);
       setOrders(prev => 
         prev.map(order => 
-          order._id === data.orderId 
-            ? { ...order, status: data.status }
+          order._id === event.detail.orderId 
+            ? { ...order, status: event.detail.status }
             : order
         )
       );
-      toast.success(data.message);
+      
+      // Show appropriate notification based on user role and status
+      const { status, message, updatedBy } = event.detail;
+      if (isFoodBuddy && updatedBy === 'mom') {
+        if (status === 'accepted') {
+          toast.success('🎉 Your order has been accepted! Chef will start cooking soon.');
+        } else if (status === 'preparing') {
+          toast.success('👩‍🍳 Your meal is being prepared with love!');
+        } else if (status === 'ready') {
+          toast.success('📦 Your order is ready! Delivery partner will pick it up soon.');
+        } else if (status === 'picked_up') {
+          toast.success('🚚 Your order is on the way!');
+        } else if (status === 'delivered') {
+          toast.success('🎉 Order delivered! Enjoy your meal!');
+        }
+      }
+    };
+
+    const handleOrderRejected = (event: any) => {
+      console.log('Order rejected:', event.detail);
+      setOrders(prev => 
+        prev.map(order => 
+          order._id === event.detail.orderId 
+            ? { ...order, status: 'cancelled' }
+            : order
+        )
+      );
+      
+      if (isFoodBuddy) {
+        toast.error('❌ Your order has been cancelled by the chef. You will receive a full refund.');
+      }
+    };
+
+    const handleDeliveryAssigned = (event: any) => {
+      console.log('Delivery assigned:', event.detail);
+      setOrders(prev => 
+        prev.map(order => 
+          order._id === event.detail.order._id 
+            ? { ...order, delivery_partner_id: event.detail.order.delivery_partner_id }
+            : order
+        )
+      );
+      
+      if (isFoodBuddy) {
+        toast.success('🚚 Delivery partner assigned to your order!');
+      } else if (isDeliveryPartner) {
+        toast.success('📦 New delivery assigned to you!');
+      }
     };
 
     window.addEventListener('new_order', handleNewOrder);
     window.addEventListener('order_status_update', handleOrderStatusUpdate);
+    window.addEventListener('order_rejected', handleOrderRejected);
+    window.addEventListener('delivery_assigned', handleDeliveryAssigned);
 
     return () => {
       window.removeEventListener('new_order', handleNewOrder);
       window.removeEventListener('order_status_update', handleOrderStatusUpdate);
+      window.removeEventListener('order_rejected', handleOrderRejected);
+      window.removeEventListener('delivery_assigned', handleDeliveryAssigned);
     };
-  }, []);
+  }, [isMom, isFoodBuddy, isDeliveryPartner]);
 
   const loadDashboardData = async () => {
     try {
@@ -194,6 +254,11 @@ const Dashboard: React.FC = () => {
 
   const handleOrderStatusUpdate = async (orderId: string, newStatus: string) => {
     try {
+      if (!isConnected) {
+        toast.error('Connection lost. Please check your internet connection.');
+        return;
+      }
+
       const response = await orderAPI.updateOrderStatus(orderId, newStatus);
       if (response.success) {
         setOrders(prev => 
@@ -203,7 +268,18 @@ const Dashboard: React.FC = () => {
               : order
           )
         );
-        toast.success(`Order status updated to ${newStatus}`);
+        
+        // Show success message based on status
+        const statusMessages = {
+          accepted: 'Order accepted! Customer has been notified.',
+          preparing: 'Started cooking! Customer can track progress.',
+          ready: 'Order marked as ready! Looking for delivery partner.',
+          picked_up: 'Order picked up for delivery!',
+          delivered: 'Order delivered successfully!',
+          cancelled: 'Order cancelled. Customer has been notified.'
+        };
+        
+        toast.success(statusMessages[newStatus as keyof typeof statusMessages] || `Order status updated to ${newStatus}`);
       }
     } catch (error: any) {
       console.error('Error updating order status:', error);
@@ -211,17 +287,22 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const handleTrackOrder = (orderId: string) => {
+    setTrackedOrderId(orderId);
+    setShowOrderTracker(true);
+  };
+
   const getStatusColor = (status: string) => {
     const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      accepted: 'bg-blue-100 text-blue-800',
-      preparing: 'bg-orange-100 text-orange-800',
-      ready: 'bg-purple-100 text-purple-800',
-      picked_up: 'bg-indigo-100 text-indigo-800',
-      delivered: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800'
+      pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
+      accepted: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400',
+      preparing: 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400',
+      ready: 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400',
+      picked_up: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-400',
+      delivered: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
+      cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
     };
-    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
   };
 
   const getNextStatus = (currentStatus: string) => {
@@ -235,20 +316,31 @@ const Dashboard: React.FC = () => {
     return statusFlow[currentStatus as keyof typeof statusFlow];
   };
 
+  const getNextStatusLabel = (currentStatus: string) => {
+    const labels = {
+      pending: 'Accept Order',
+      accepted: 'Start Cooking',
+      preparing: 'Mark Ready',
+      ready: 'Pick Up',
+      picked_up: 'Mark Delivered'
+    };
+    return labels[currentStatus as keyof typeof labels];
+  };
+
   if (!user) return null;
 
-  // Mock stats for demonstration
+  // Calculate stats
   const stats = {
     foodie: {
       totalOrders: orders.length,
       activeOrders: orders.filter(o => !['delivered', 'cancelled'].includes(o.status)).length,
-      favoriteChefs: 8,
-      totalSpent: orders.reduce((sum, order) => sum + order.total_amount, 0)
+      favoriteChefs: new Set(orders.map(o => o.mom_id?._id || o.mom_id)).size,
+      totalSpent: orders.filter(o => o.status === 'delivered').reduce((sum, order) => sum + order.total_amount, 0)
     },
     mom: {
       totalEarnings: orders.filter(o => o.status === 'delivered').reduce((sum, order) => sum + order.total_amount, 0),
       activeOrders: orders.filter(o => !['delivered', 'cancelled'].includes(o.status)).length,
-      totalCustomers: new Set(orders.map(o => o.foodie_id)).size,
+      totalCustomers: new Set(orders.map(o => o.foodie_id?._id || o.foodie_id)).size,
       menuItems: menuItems.length
     },
     delivery: {
@@ -307,7 +399,7 @@ const Dashboard: React.FC = () => {
               <div className="flex items-center space-x-2 mt-2">
                 <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
                 <span className="text-sm text-gray-500">
-                  {isConnected ? 'Connected' : 'Disconnected'}
+                  Real-time: {isConnected ? 'Connected' : 'Disconnected'}
                 </span>
               </div>
             </div>
@@ -329,6 +421,25 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         </motion.div>
+
+        {/* Connection Warning */}
+        {!isConnected && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl"
+          >
+            <div className="flex items-center space-x-3">
+              <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+              <div>
+                <h3 className="font-semibold text-red-800 dark:text-red-300">Connection Lost</h3>
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  Real-time features are disabled. Please check your internet connection.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Stats Grid */}
         <motion.div
@@ -479,26 +590,69 @@ const Dashboard: React.FC = () => {
                           <p className="text-xs text-gray-500">
                             {new Date(order.created_at).toLocaleString()}
                           </p>
+                          {/* Customer/Chef info */}
+                          {isMom && order.foodie_id && (
+                            <p className="text-xs text-blue-600 dark:text-blue-400">
+                              Customer: {order.foodie_id.name}
+                            </p>
+                          )}
+                          {isFoodBuddy && order.mom_id && (
+                            <p className="text-xs text-green-600 dark:text-green-400">
+                              Chef: {order.mom_id.name}
+                            </p>
+                          )}
+                          {order.delivery_partner_id && (
+                            <p className="text-xs text-purple-600 dark:text-purple-400">
+                              Delivery: {order.delivery_partner_id.name}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center space-x-3">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                          {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                          {order.status.charAt(0).toUpperCase() + order.status.slice(1).replace('_', ' ')}
                         </span>
-                        {(isMom || isDeliveryPartner) && getNextStatus(order.status) && (
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => handleOrderStatusUpdate(order._id, getNextStatus(order.status))}
-                            className="px-3 py-1 bg-orange-500 text-white rounded-lg text-xs font-medium hover:bg-orange-600 transition-colors"
-                          >
-                            {getNextStatus(order.status) === 'accepted' && 'Accept'}
-                            {getNextStatus(order.status) === 'preparing' && 'Start Cooking'}
-                            {getNextStatus(order.status) === 'ready' && 'Mark Ready'}
-                            {getNextStatus(order.status) === 'picked_up' && 'Pick Up'}
-                            {getNextStatus(order.status) === 'delivered' && 'Delivered'}
-                          </motion.button>
-                        )}
+                        
+                        {/* Action buttons */}
+                        <div className="flex space-x-2">
+                          {/* Track order button for customers */}
+                          {isFoodBuddy && (
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => handleTrackOrder(order._id)}
+                              className="p-2 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/40 transition-colors"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </motion.button>
+                          )}
+                          
+                          {/* Status update button for moms and delivery partners */}
+                          {(isMom || isDeliveryPartner) && getNextStatus(order.status) && (
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => handleOrderStatusUpdate(order._id, getNextStatus(order.status))}
+                              disabled={!isConnected}
+                              className="px-3 py-1 bg-orange-500 text-white rounded-lg text-xs font-medium hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {getNextStatusLabel(order.status)}
+                            </motion.button>
+                          )}
+                          
+                          {/* Reject button for pending orders (moms only) */}
+                          {isMom && order.status === 'pending' && (
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => handleOrderStatusUpdate(order._id, 'cancelled')}
+                              disabled={!isConnected}
+                              className="px-3 py-1 bg-red-500 text-white rounded-lg text-xs font-medium hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Reject
+                            </motion.button>
+                          )}
+                        </div>
                       </div>
                     </motion.div>
                   ))
@@ -636,7 +790,7 @@ const Dashboard: React.FC = () => {
                       whileTap={{ scale: 0.98 }}
                       className="w-full flex items-center space-x-3 p-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl hover:shadow-lg transition-all duration-300"
                     >
-                      <MapPin className="h-5 w-5" />
+                      <Navigation className="h-5 w-5" />
                       <span>Go Online</span>
                     </motion.button>
                     <motion.button
@@ -693,6 +847,12 @@ const Dashboard: React.FC = () => {
                   <Award className="h-4 w-4 text-yellow-500" />
                   <span className="text-sm text-gray-600 dark:text-gray-400">
                     {isFoodBuddy ? 'Verified Food Buddy' : isMom ? 'Certified Home Chef' : 'Verified Delivery Partner'}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Phone className="h-4 w-4 text-green-500" />
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {user.phone || 'Phone not added'}
                   </span>
                 </div>
               </div>
@@ -854,6 +1014,14 @@ const Dashboard: React.FC = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Real-Time Order Tracker Modal */}
+        {showOrderTracker && (
+          <RealTimeOrderTracker
+            orderId={trackedOrderId}
+            onClose={() => setShowOrderTracker(false)}
+          />
+        )}
       </div>
     </div>
   );
