@@ -11,40 +11,32 @@ import {
   Navigation,
   Timer,
   User,
-  Star
+  Star,
+  X,
+  MessageCircle,
+  Heart
 } from 'lucide-react';
 import { useSocket } from '../../contexts/SocketContext';
 import { orderAPI } from '../../lib/api';
+import toast from 'react-hot-toast';
 
 interface OrderStatus {
-  id: string;
+  _id: string;
   status: 'pending' | 'accepted' | 'preparing' | 'ready' | 'picked_up' | 'delivered';
   estimatedTime: number; // in minutes
   actualTime?: number;
-  momInfo: {
-    name: string;
-    phone: string;
-    avatar: string;
-    rating: number;
-    kitchenName: string;
-  };
-  deliveryPartner?: {
-    name: string;
-    phone: string;
-    avatar: string;
-    rating: number;
-    vehicleType: string;
-    currentLocation: { lat: number; lng: number };
-    estimatedArrival: number; // in minutes
-  };
+  foodie_id: any;
+  mom_id: any;
+  delivery_partner_id?: any;
   items: Array<{
-    name: string;
+    menu_item_id: string;
     quantity: number;
     price: number;
   }>;
-  totalAmount: number;
-  orderTime: string;
-  deliveryAddress: string;
+  total_amount: number;
+  created_at: string;
+  delivery_address: string;
+  delivery_instructions?: string;
 }
 
 interface RealTimeOrderTrackerProps {
@@ -57,6 +49,9 @@ const RealTimeOrderTracker: React.FC<RealTimeOrderTrackerProps> = ({ orderId, on
   const [orderStatus, setOrderStatus] = useState<OrderStatus | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [loading, setLoading] = useState(true);
+  const [cookingProgress, setCookingProgress] = useState(0);
+  const [feedback, setFeedback] = useState({ rating: 5, comment: '' });
+  const [showFeedback, setShowFeedback] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -75,41 +70,15 @@ const RealTimeOrderTracker: React.FC<RealTimeOrderTrackerProps> = ({ orderId, on
         if (response.success) {
           const order = response.orders.find(o => o._id === orderId);
           if (order) {
-            // Transform API order to component format
-            setOrderStatus({
-              id: order._id,
-              status: order.status as any,
-              estimatedTime: 35, // Default estimate
-              actualTime: Math.floor((new Date().getTime() - new Date(order.created_at).getTime()) / (1000 * 60)),
-              momInfo: {
-                name: 'Chef Mom', // Default - should come from populated data
-                phone: '+91 98765 43210',
-                avatar: 'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-                rating: 4.8,
-                kitchenName: "Mom's Kitchen"
-              },
-              deliveryPartner: order.status !== 'pending' && order.status !== 'accepted' ? {
-                name: 'Delivery Partner',
-                phone: '+91 87654 32109',
-                avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-                rating: 4.6,
-                vehicleType: 'bike',
-                currentLocation: { lat: 28.6139, lng: 77.2090 },
-                estimatedArrival: 15
-              } : undefined,
-              items: order.items.map(item => ({
-                name: `Item ${item.menu_item_id}`, // Should be populated with actual menu item name
-                quantity: item.quantity,
-                price: item.price
-              })),
-              totalAmount: order.total_amount,
-              orderTime: order.created_at,
-              deliveryAddress: order.delivery_address
-            });
+            setOrderStatus(order);
+            if (order.status === 'delivered') {
+              setShowFeedback(true);
+            }
           }
         }
       } catch (error) {
         console.error('Error fetching order details:', error);
+        toast.error('Failed to load order details');
       } finally {
         setLoading(false);
       }
@@ -126,15 +95,38 @@ const RealTimeOrderTracker: React.FC<RealTimeOrderTrackerProps> = ({ orderId, on
         setOrderStatus(prev => prev ? {
           ...prev,
           status: status,
-          actualTime: Math.floor((new Date().getTime() - new Date(prev.orderTime).getTime()) / (1000 * 60))
+          actualTime: Math.floor((new Date().getTime() - new Date(prev.created_at).getTime()) / (1000 * 60))
         } : null);
+        
+        if (status === 'delivered') {
+          setShowFeedback(true);
+        }
+      }
+    };
+
+    const handleCookingProgress = (event: any) => {
+      const data = event.detail;
+      if (data.order_id === orderId) {
+        setCookingProgress(data.progress || 0);
+        toast.success(data.message, { icon: '👩‍🍳' });
+      }
+    };
+
+    const handleDeliveryUpdate = (event: any) => {
+      const data = event.detail;
+      if (data.order_id === orderId) {
+        toast.info(data.message, { icon: '🚚' });
       }
     };
 
     window.addEventListener('order_status_update', handleOrderStatusUpdate);
+    window.addEventListener('cooking_progress', handleCookingProgress);
+    window.addEventListener('delivery_update', handleDeliveryUpdate);
 
     return () => {
       window.removeEventListener('order_status_update', handleOrderStatusUpdate);
+      window.removeEventListener('cooking_progress', handleCookingProgress);
+      window.removeEventListener('delivery_update', handleDeliveryUpdate);
     };
   }, [orderId]);
 
@@ -145,45 +137,64 @@ const RealTimeOrderTracker: React.FC<RealTimeOrderTrackerProps> = ({ orderId, on
         color: 'text-yellow-500', 
         bg: 'bg-yellow-100 dark:bg-yellow-900/20',
         title: 'Order Placed',
-        description: 'Waiting for chef to accept your order'
+        description: 'Waiting for chef to accept your order',
+        progress: 10
       },
       accepted: { 
         icon: CheckCircle, 
         color: 'text-green-500', 
         bg: 'bg-green-100 dark:bg-green-900/20',
         title: 'Order Accepted',
-        description: 'Chef has accepted your order'
+        description: 'Chef has accepted your order',
+        progress: 25
       },
       preparing: { 
         icon: ChefHat, 
         color: 'text-orange-500', 
         bg: 'bg-orange-100 dark:bg-orange-900/20',
         title: 'Cooking in Progress',
-        description: 'Your meal is being prepared with love'
+        description: 'Your meal is being prepared with love',
+        progress: 50 + (cookingProgress * 0.3)
       },
       ready: { 
         icon: AlertCircle, 
         color: 'text-blue-500', 
         bg: 'bg-blue-100 dark:bg-blue-900/20',
         title: 'Ready for Pickup',
-        description: 'Meal is ready, waiting for delivery partner'
+        description: 'Meal is ready, waiting for delivery partner',
+        progress: 80
       },
       picked_up: { 
         icon: Truck, 
         color: 'text-purple-500', 
         bg: 'bg-purple-100 dark:bg-purple-900/20',
         title: 'Out for Delivery',
-        description: 'Your order is on the way'
+        description: 'Your order is on the way',
+        progress: 90
       },
       delivered: { 
         icon: CheckCircle, 
         color: 'text-green-600', 
         bg: 'bg-green-100 dark:bg-green-900/20',
         title: 'Delivered',
-        description: 'Enjoy your meal!'
+        description: 'Enjoy your meal!',
+        progress: 100
       }
     };
     return statusMap[status as keyof typeof statusMap];
+  };
+
+  const submitFeedback = () => {
+    if (socket && orderStatus) {
+      socket.emit('order_feedback', {
+        order_id: orderId,
+        chef_id: orderStatus.mom_id._id,
+        rating: feedback.rating,
+        comment: feedback.comment
+      });
+      toast.success('Thank you for your feedback!');
+      setShowFeedback(false);
+    }
   };
 
   if (loading) {
@@ -225,17 +236,16 @@ const RealTimeOrderTracker: React.FC<RealTimeOrderTrackerProps> = ({ orderId, on
   const currentStatusInfo = getStatusInfo(orderStatus.status);
   const StatusIcon = currentStatusInfo.icon;
 
-  const getTimeRemaining = () => {
-    const orderTime = new Date(orderStatus.orderTime);
+  const getTimeElapsed = () => {
+    const orderTime = new Date(orderStatus.created_at);
     const elapsedMinutes = Math.floor((currentTime.getTime() - orderTime.getTime()) / (1000 * 60));
-    const remaining = Math.max(0, orderStatus.estimatedTime - elapsedMinutes);
-    return remaining;
+    return elapsedMinutes;
   };
 
-  const getProgressPercentage = () => {
-    const statusOrder = ['pending', 'accepted', 'preparing', 'ready', 'picked_up', 'delivered'];
-    const currentIndex = statusOrder.indexOf(orderStatus.status);
-    return ((currentIndex + 1) / statusOrder.length) * 100;
+  const getEstimatedTimeRemaining = () => {
+    const elapsed = getTimeElapsed();
+    const estimated = orderStatus.estimatedTime || 45;
+    return Math.max(0, estimated - elapsed);
   };
 
   return (
@@ -257,19 +267,18 @@ const RealTimeOrderTracker: React.FC<RealTimeOrderTrackerProps> = ({ orderId, on
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 warm:border-orange-200 green:border-green-200">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900">
-              Order Tracking
+              Live Order Tracking
             </h2>
             <div className="flex items-center space-x-2">
-              {!isConnected && (
-                <span className="text-xs bg-red-500 text-white px-2 py-1 rounded-full">
-                  Offline
-                </span>
-              )}
+              <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              <span className="text-xs text-gray-500">
+                {isConnected ? 'Live' : 'Offline'}
+              </span>
               <button
                 onClick={onClose}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 warm:hover:bg-orange-100 green:hover:bg-green-100 rounded-full transition-colors"
               >
-                ✕
+                <X className="h-5 w-5" />
               </button>
             </div>
           </div>
@@ -299,13 +308,13 @@ const RealTimeOrderTracker: React.FC<RealTimeOrderTrackerProps> = ({ orderId, on
           <div className="mb-6">
             <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 warm:text-gray-600 green:text-gray-500 mb-2">
               <span>Progress</span>
-              <span>{Math.round(getProgressPercentage())}%</span>
+              <span>{Math.round(currentStatusInfo.progress)}%</span>
             </div>
             <div className="w-full bg-gray-200 dark:bg-gray-700 warm:bg-orange-200 green:bg-green-200 rounded-full h-2">
               <motion.div
                 className="bg-gradient-to-r from-orange-500 to-pink-500 h-2 rounded-full"
                 initial={{ width: 0 }}
-                animate={{ width: `${getProgressPercentage()}%` }}
+                animate={{ width: `${currentStatusInfo.progress}%` }}
                 transition={{ duration: 0.5 }}
               />
             </div>
@@ -316,7 +325,7 @@ const RealTimeOrderTracker: React.FC<RealTimeOrderTrackerProps> = ({ orderId, on
             <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 warm:bg-orange-100 green:bg-green-100 rounded-xl">
               <Timer className="h-6 w-6 text-orange-500 mx-auto mb-2" />
               <div className="text-2xl font-bold text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900">
-                {getTimeRemaining()}
+                {getEstimatedTimeRemaining()}
               </div>
               <div className="text-xs text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600">
                 Minutes Left
@@ -325,7 +334,7 @@ const RealTimeOrderTracker: React.FC<RealTimeOrderTrackerProps> = ({ orderId, on
             <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 warm:bg-orange-100 green:bg-green-100 rounded-xl">
               <Clock className="h-6 w-6 text-blue-500 mx-auto mb-2" />
               <div className="text-2xl font-bold text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900">
-                {orderStatus.actualTime}
+                {getTimeElapsed()}
               </div>
               <div className="text-xs text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600">
                 Minutes Elapsed
@@ -334,67 +343,73 @@ const RealTimeOrderTracker: React.FC<RealTimeOrderTrackerProps> = ({ orderId, on
           </div>
 
           {/* Chef Information */}
-          <div className="mb-6 p-4 bg-gradient-to-r from-orange-50 to-pink-50 dark:from-orange-900/20 dark:to-pink-900/20 warm:from-orange-100 warm:to-pink-100 green:from-green-50 green:to-emerald-50 rounded-xl">
-            <h4 className="font-semibold text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900 mb-3 flex items-center">
-              <ChefHat className="h-5 w-5 mr-2 text-orange-500" />
-              Your Chef
-            </h4>
-            <div className="flex items-center space-x-3">
-              <img
-                src={orderStatus.momInfo.avatar}
-                alt={orderStatus.momInfo.name}
-                className="w-12 h-12 rounded-full object-cover"
-              />
-              <div className="flex-1">
-                <div className="font-medium text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900">
-                  {orderStatus.momInfo.name}
-                </div>
-                <div className="text-sm text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600">
-                  {orderStatus.momInfo.kitchenName}
-                </div>
-                <div className="flex items-center space-x-1">
-                  <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                  <span className="text-sm text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600">
-                    {orderStatus.momInfo.rating}
+          {orderStatus.mom_id && (
+            <div className="mb-6 p-4 bg-gradient-to-r from-orange-50 to-pink-50 dark:from-orange-900/20 dark:to-pink-900/20 warm:from-orange-100 warm:to-pink-100 green:from-green-50 green:to-emerald-50 rounded-xl">
+              <h4 className="font-semibold text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900 mb-3 flex items-center">
+                <ChefHat className="h-5 w-5 mr-2 text-orange-500" />
+                Your Chef
+              </h4>
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-orange-400 to-pink-400 flex items-center justify-center">
+                  <span className="text-white font-bold">
+                    {orderStatus.mom_id.name?.charAt(0) || 'M'}
                   </span>
                 </div>
+                <div className="flex-1">
+                  <div className="font-medium text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900">
+                    {orderStatus.mom_id.name || 'Chef Mom'}
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600">
+                    Home Kitchen
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                    <span className="text-sm text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600">
+                      4.8
+                    </span>
+                  </div>
+                </div>
+                {orderStatus.mom_id.phone && (
+                  <a
+                    href={`tel:${orderStatus.mom_id.phone}`}
+                    className="p-2 bg-white dark:bg-gray-800 warm:bg-orange-100 green:bg-green-100 rounded-full shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <Phone className="h-4 w-4 text-green-500" />
+                  </a>
+                )}
               </div>
-              <a
-                href={`tel:${orderStatus.momInfo.phone}`}
-                className="p-2 bg-white dark:bg-gray-800 warm:bg-orange-100 green:bg-green-100 rounded-full shadow-sm hover:shadow-md transition-shadow"
-              >
-                <Phone className="h-4 w-4 text-green-500" />
-              </a>
             </div>
-          </div>
+          )}
 
           {/* Delivery Partner Information */}
-          {orderStatus.deliveryPartner && orderStatus.status !== 'pending' && orderStatus.status !== 'accepted' && (
+          {orderStatus.delivery_partner_id && orderStatus.status !== 'pending' && orderStatus.status !== 'accepted' && (
             <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 warm:from-blue-100 warm:to-purple-100 green:from-blue-50 green:to-purple-50 rounded-xl">
               <h4 className="font-semibold text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900 mb-3 flex items-center">
                 <Truck className="h-5 w-5 mr-2 text-blue-500" />
                 Delivery Partner
               </h4>
               <div className="flex items-center space-x-3 mb-3">
-                <img
-                  src={orderStatus.deliveryPartner.avatar}
-                  alt={orderStatus.deliveryPartner.name}
-                  className="w-12 h-12 rounded-full object-cover"
-                />
+                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-400 to-purple-400 flex items-center justify-center">
+                  <span className="text-white font-bold">
+                    {orderStatus.delivery_partner_id.name?.charAt(0) || 'D'}
+                  </span>
+                </div>
                 <div className="flex-1">
                   <div className="font-medium text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900">
-                    {orderStatus.deliveryPartner.name}
+                    {orderStatus.delivery_partner_id.name || 'Delivery Partner'}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600 capitalize">
-                    {orderStatus.deliveryPartner.vehicleType} • ⭐ {orderStatus.deliveryPartner.rating}
+                  <div className="text-sm text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600">
+                    Bike • ⭐ 4.6
                   </div>
                 </div>
-                <a
-                  href={`tel:${orderStatus.deliveryPartner.phone}`}
-                  className="p-2 bg-white dark:bg-gray-800 warm:bg-orange-100 green:bg-green-100 rounded-full shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <Phone className="h-4 w-4 text-green-500" />
-                </a>
+                {orderStatus.delivery_partner_id.phone && (
+                  <a
+                    href={`tel:${orderStatus.delivery_partner_id.phone}`}
+                    className="p-2 bg-white dark:bg-gray-800 warm:bg-orange-100 green:bg-green-100 rounded-full shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <Phone className="h-4 w-4 text-green-500" />
+                  </a>
+                )}
               </div>
               
               {orderStatus.status === 'picked_up' && (
@@ -406,7 +421,7 @@ const RealTimeOrderTracker: React.FC<RealTimeOrderTrackerProps> = ({ orderId, on
                     </span>
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600">
-                    {orderStatus.deliveryPartner.estimatedArrival} min away
+                    15 min away
                   </div>
                 </div>
               )}
@@ -423,7 +438,7 @@ const RealTimeOrderTracker: React.FC<RealTimeOrderTrackerProps> = ({ orderId, on
                 <div key={index} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 warm:bg-orange-100 green:bg-green-100 rounded-lg">
                   <div>
                     <div className="font-medium text-gray-900 dark:text-white warm:text-gray-800 green:text-gray-900">
-                      {item.name}
+                      Item #{item.menu_item_id}
                     </div>
                     <div className="text-sm text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600">
                       Qty: {item.quantity}
@@ -440,7 +455,7 @@ const RealTimeOrderTracker: React.FC<RealTimeOrderTrackerProps> = ({ orderId, on
                 Total Amount
               </span>
               <span className="font-bold text-lg text-orange-600 dark:text-orange-400 warm:text-orange-700 green:text-green-600">
-                ₹{orderStatus.totalAmount}
+                ₹{orderStatus.total_amount}
               </span>
             </div>
           </div>
@@ -454,12 +469,74 @@ const RealTimeOrderTracker: React.FC<RealTimeOrderTrackerProps> = ({ orderId, on
                   Delivery Address
                 </div>
                 <div className="text-sm text-gray-600 dark:text-gray-400 warm:text-gray-700 green:text-gray-600">
-                  {orderStatus.deliveryAddress}
+                  {orderStatus.delivery_address}
                 </div>
+                {orderStatus.delivery_instructions && (
+                  <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                    Instructions: {orderStatus.delivery_instructions}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
+
+        {/* Feedback Modal */}
+        <AnimatePresence>
+          {showFeedback && orderStatus.status === 'delivered' && (
+            <motion.div
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 50 }}
+              className="absolute inset-0 bg-black/50 flex items-center justify-center p-4"
+            >
+              <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 max-w-sm w-full">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                  <Heart className="h-5 w-5 mr-2 text-red-500" />
+                  Rate Your Experience
+                </h3>
+                
+                <div className="mb-4">
+                  <div className="flex justify-center space-x-2 mb-3">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => setFeedback(prev => ({ ...prev, rating: star }))}
+                        className={`text-2xl ${star <= feedback.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                      >
+                        ⭐
+                      </button>
+                    ))}
+                  </div>
+                  
+                  <textarea
+                    value={feedback.comment}
+                    onChange={(e) => setFeedback(prev => ({ ...prev, comment: e.target.value }))}
+                    placeholder="Share your experience..."
+                    className="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"
+                    rows={3}
+                  />
+                </div>
+                
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setShowFeedback(false)}
+                    className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+                  >
+                    Skip
+                  </button>
+                  <button
+                    onClick={submitFeedback}
+                    className="flex-1 py-2 px-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600 flex items-center justify-center space-x-2"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    <span>Submit</span>
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   );

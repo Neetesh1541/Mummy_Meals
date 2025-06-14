@@ -42,35 +42,55 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     }
 
     // Create socket connection
-    const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:3001', {
+    const newSocket = io(import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001', {
       auth: {
         token: token
       },
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
     });
 
     newSocket.on('connect', () => {
       console.log('🔌 Connected to server via Socket.IO');
       setIsConnected(true);
+      toast.success('Connected to real-time updates', {
+        duration: 2000,
+        icon: '🔌'
+      });
     });
 
     newSocket.on('disconnect', () => {
       console.log('🔌 Disconnected from server');
       setIsConnected(false);
+      toast.error('Disconnected from real-time updates', {
+        duration: 2000,
+        icon: '⚠️'
+      });
     });
 
     newSocket.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
       setIsConnected(false);
+      toast.error('Connection error. Retrying...', {
+        duration: 3000,
+        icon: '❌'
+      });
+    });
+
+    newSocket.on('reconnect', (attemptNumber) => {
+      console.log(`🔌 Reconnected after ${attemptNumber} attempts`);
+      setIsConnected(true);
+      toast.success('Reconnected to real-time updates', {
+        duration: 2000,
+        icon: '🔌'
+      });
     });
 
     // Listen for new orders (for moms)
     newSocket.on('new_order', (data) => {
       console.log('📱 New order received:', data);
-      toast.success('New order received!', {
-        icon: '🔔',
-        duration: 5000,
-      });
       
       // Play notification sound
       try {
@@ -88,6 +108,12 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
         console.log('Could not play notification sound:', error);
       }
 
+      // Show toast notification
+      toast.success('New order received!', {
+        icon: '🔔',
+        duration: 5000,
+      });
+
       // Dispatch custom event for components to listen to
       window.dispatchEvent(new CustomEvent('new_order', { detail: data }));
     });
@@ -95,6 +121,8 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     // Listen for order status updates
     newSocket.on('order_status_update', (data) => {
       console.log('📱 Order status update:', data);
+      
+      // Show toast notification
       toast.success(data.message, {
         icon: '📋',
         duration: 3000,
@@ -104,7 +132,32 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       window.dispatchEvent(new CustomEvent('order_status_update', { detail: data }));
     });
 
+    // Listen for delivery partner assignment
+    newSocket.on('delivery_assigned', (data) => {
+      console.log('🚚 Delivery partner assigned:', data);
+      toast.success('Delivery partner assigned!', {
+        icon: '🚚',
+        duration: 3000,
+      });
+      window.dispatchEvent(new CustomEvent('delivery_assigned', { detail: data }));
+    });
+
+    // Listen for delivery updates
+    newSocket.on('delivery_update', (data) => {
+      console.log('📍 Delivery update:', data);
+      toast.info(data.message, {
+        icon: '📍',
+        duration: 3000,
+      });
+      window.dispatchEvent(new CustomEvent('delivery_update', { detail: data }));
+    });
+
     setSocket(newSocket);
+
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
 
     // Cleanup on unmount
     return () => {
@@ -122,4 +175,4 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       {children}
     </SocketContext.Provider>
   );
-}; 
+};
