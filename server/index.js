@@ -10,7 +10,7 @@ import menuRoutes from './routes/menu.js';
 import orderRoutes from './routes/orders.js';
 import { authMiddleware } from './middleware/auth.js';
 import jwt from 'jsonwebtoken';
-
+...
 dotenv.config();
 
 const app = express();
