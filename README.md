@@ -1,29 +1,32 @@
 # 🍱 Mummy Meals
 
-Mummy Meals is a food-ordering project focused on making home-style meals easy to discover and order online.
+Mummy Meals is a **home-style food ordering platform** designed to make homemade meals easier to discover and order online.
 
 ## ✨ Highlights
 
-- Browse and explore home-style meal options
-- User-friendly food ordering experience
-- Support for online payments and Cash on Delivery
-- Location and map integration
-- Backend data powered by Supabase
+- 🍱 Browse home-style meal options
+- 🛒 Simple food-ordering experience
+- 💳 Online payments with Stripe
+- 💵 Cash on Delivery support
+- 📍 Location and map integration
+- 🗄️ Supabase-powered backend and database
 
 ## 🛠️ Tech Stack
 
-- Frontend: React
-- Database & Backend Services: Supabase
-- Payments: Stripe
-- Maps: Map API integration
+| Layer | Technology |
+|---|---|
+| Frontend | React |
+| Backend / Database | Supabase |
+| Payments | Stripe |
+| Maps | Map API |
 
-## 🎯 Goal
+## 🎯 Project Goal
 
-The project aims to connect customers with convenient, home-style food while providing a simple digital ordering flow.
+The goal is to connect customers with convenient, home-style food through a clean digital ordering flow while supporting modern payment and location features.
 
 ## 🚀 Getting Started
 
-Clone the repository, install the project dependencies, configure the required environment variables, and start the development server using the project's package scripts.
+Clone the repository, install dependencies, configure the required environment variables, and start the development server using the project's package scripts.
 
 ## 👨‍💻 Author
 
